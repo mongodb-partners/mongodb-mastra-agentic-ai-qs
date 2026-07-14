@@ -1,0 +1,66 @@
+#!/bin/bash
+# EC2 bootstrap for Marshal (rendered by ec2.tf via templatefile).
+# Terraform substitutes its own template vars; shell $${...} expansions are escaped.
+set -euo pipefail
+LOG=/var/log/deploy.log
+exec > >(tee -a "$LOG") 2>&1
+
+log() { echo "[$(date -Is)] $*"; }
+
+install_docker() {
+  log "installing docker + git"
+  dnf -y update
+  dnf -y install docker git
+  systemctl enable --now docker
+  mkdir -p /usr/libexec/docker/cli-plugins
+  # Compose v2 plugin (the `docker compose` subcommand).
+  curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
+    -o /usr/libexec/docker/cli-plugins/docker-compose
+  chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+  # buildx plugin: the current compose `build` needs buildx >= 0.17; AL2023's bundled
+  # docker ships an older/absent one, so install a recent buildx into the same dir.
+  curl -fsSL "https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64" \
+    -o /usr/libexec/docker/cli-plugins/docker-buildx
+  chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
+  docker compose version
+  docker buildx version
+}
+
+fetch_env_from_ssm() {
+  log "fetching env from SSM path ${ssm_path_prefix}"
+  mkdir -p /opt/app
+  : > /opt/app/.env
+  # Pull every param under the prefix, decrypt SecureStrings, write KEY=VALUE lines.
+  aws ssm get-parameters-by-path \
+      --region "${aws_region}" \
+      --path "${ssm_path_prefix}" \
+      --with-decryption --recursive \
+      --query 'Parameters[].[Name,Value]' --output text \
+    | while IFS=$'\t' read -r name value; do
+        key=$(basename "$name")
+        printf '%s=%s\n' "$key" "$value" >> /opt/app/.env
+      done
+  log "wrote $(wc -l < /opt/app/.env) env keys"
+}
+
+clone_and_up() {
+  log "cloning ${app_repo_url}@${app_repo_ref}"
+  rm -rf /opt/app/src
+  git clone --depth 1 --branch "${app_repo_ref}" "${app_repo_url}" /opt/app/src
+  cp /opt/app/.env /opt/app/src/.env
+  cd /opt/app/src
+
+  log "building + starting containers (app + nginx)"
+  # nginx override publishes :80 → app:8000 (SSE-friendly for the live feed). The base compose
+  # also publishes 8000 for admin-only direct access.
+  docker compose -f docker-compose.yml -f deploy/compose.nginx.yml up -d --build
+}
+
+main() {
+  log "== userdata start =="
+  install_docker
+  fetch_env_from_ssm
+  clone_and_up
+  log "== userdata done =="
+}
+main

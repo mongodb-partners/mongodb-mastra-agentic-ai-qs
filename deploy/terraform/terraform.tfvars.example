@@ -1,0 +1,57 @@
+# Copy to terraform.tfvars and fill in the NON-SECRET values below.
+# SECRETS (atlas keys, voyage key, gateway key, BYO mongo uri, db password, audit/session
+# secrets) must come from TF_VAR_* env vars — do NOT put them in a committed file.
+# terraform.tfvars is gitignored, but keep the habit of passing secrets via env.
+#
+# Example run:
+#   export TF_VAR_atlas_public_key=...   TF_VAR_atlas_private_key=...
+#   export TF_VAR_atlas_project_id=...   TF_VAR_voyage_api_key=...   # or TF_VAR_atlas_org_id to create a project
+#   deploy/scripts/deploy.sh
+
+# ── Mode / region ──────────────────────────────────────────────────────────────
+create_atlas_cluster = true            # false ⇒ BYO: skip Atlas+peering, set TF_VAR_mongodb_uri_byo
+aws_region           = "us-west-2"
+availability_zone    = "us-west-2a"
+name_prefix          = "marshal"
+
+# ── Access ───────────────────────────────────────────────────────────────────
+# Nothing is world-open. App ports (80 for everyone via nginx, 8000 for admins) are admitted
+# only from office_cidrs. Set your office/VPN ranges here — this file is gitignored.
+# admin_cidr is just the deploy machine (SSH + Atlas provision); deploy.sh auto-detects it /32.
+# office_cidrs = ["203.0.113.0/24", "198.51.100.7/32"]
+
+# ── Networking (must not overlap) ──────────────────────────────────────────────
+vpc_cidr    = "10.0.0.0/16"
+subnet_cidr = "10.0.1.0/24"
+atlas_cidr  = "192.168.248.0/21"       # Atlas AWS containers require a /21
+
+# ── Atlas (non-secret bits) ────────────────────────────────────────────────────
+# atlas_project_id comes from TF_VAR_atlas_project_id (deploy into an existing project).
+# Leave it unset AND pass TF_VAR_atlas_org_id to create a new project instead.
+atlas_project_name = "marshal"     # only used when creating a new project
+atlas_cluster_name = "marshal-cluster"
+atlas_db_username  = "marshal_app"
+# atlas_db_password: leave unset. deploy.sh generates a 28-char alphanumeric password on the
+# first run and persists it to deploy/.deploy-secrets.env (gitignored), then reuses it.
+
+# ── App config ──────────────────────────────────────────────────────────────────
+app_name       = "Marshal"
+mongodb_db     = "marshal"             # the app reads MONGODB_DB (NOT MONGODB_DATABASE)
+voyage_base_url = "https://ai.mongodb.com/v1"
+
+# Demo mode (default) replays the committed recording — no LLM at runtime, safe for hundreds
+# of concurrent viewers. Set "0" for a LIVE-agent box (then set the LLM vars + TF_VAR_grove_api_key).
+demo_mode        = "1"
+seed_scale_count = "1200"              # synthetic decided-precedent corpus (the scale story)
+
+# LLM (only used in live mode; demo mode never calls it). Default path is the Anthropic gateway.
+llm_provider = "anthropic"
+llm_model    = "claude-haiku-4-5"
+# llm_base_url = "https://<your-gateway>/anthropic/v1/messages"   # set + TF_VAR_grove_api_key for live mode
+
+# ── Build / instance ──────────────────────────────────────────────────────────
+app_repo_url    = "https://github.com/mongodb-partners/mongodb-mastra-agentic-ai-qs.git"
+app_repo_ref    = "main"
+instance_type   = "m6i.large"
+# key_pair_name = "my-existing-key"    # empty ⇒ create one from public_key_path
+public_key_path = "~/.ssh/id_ed25519.pub"

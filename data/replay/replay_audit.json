@@ -1,0 +1,101 @@
+[
+  {
+    "_id": {
+      "$oid": "6a550121adbafdcee0d1d874"
+    },
+    "event_type": "decision_recorded",
+    "entity_id": "txn-review-sanctions",
+    "actor": {
+      "type": "agent",
+      "id": "investigation-agent"
+    },
+    "payload_summary": {
+      "fields": [
+        "disposition",
+        "confidence_score",
+        "compliance_score",
+        "risk_factor_count"
+      ],
+      "disposition": "reject",
+      "risk_factor_count": {
+        "$numberInt": "1"
+      }
+    },
+    "timestamp": {
+      "$date": {
+        "$numberLong": "1783955744655"
+      }
+    },
+    "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "current_hash": "e97d05d64d93d11a3a73a6d8224ac5fbdc02474dcc32798edc98d2fd9bd9c0a3",
+    "hmac_key_version": {
+      "$numberInt": "1"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a550149adbafdcee0d1d883"
+    },
+    "event_type": "decision_recorded",
+    "entity_id": "txn-review-clean",
+    "actor": {
+      "type": "agent",
+      "id": "investigation-agent"
+    },
+    "payload_summary": {
+      "fields": [
+        "disposition",
+        "confidence_score",
+        "compliance_score",
+        "risk_factor_count"
+      ],
+      "disposition": "approve",
+      "risk_factor_count": {
+        "$numberInt": "0"
+      }
+    },
+    "timestamp": {
+      "$date": {
+        "$numberLong": "1783955784409"
+      }
+    },
+    "previous_hash": "e97d05d64d93d11a3a73a6d8224ac5fbdc02474dcc32798edc98d2fd9bd9c0a3",
+    "current_hash": "9a5cd4fe1343c3f5af11735e57e39c5afeb9e67785390ca5ba4efdd62d348e75",
+    "hmac_key_version": {
+      "$numberInt": "1"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a55017dadbafdcee0d1d88b"
+    },
+    "event_type": "decision_recorded",
+    "entity_id": "txn-review-reject",
+    "actor": {
+      "type": "agent",
+      "id": "investigation-agent"
+    },
+    "payload_summary": {
+      "fields": [
+        "disposition",
+        "confidence_score",
+        "compliance_score",
+        "risk_factor_count"
+      ],
+      "disposition": "reject",
+      "risk_factor_count": {
+        "$numberInt": "5"
+      }
+    },
+    "timestamp": {
+      "$date": {
+        "$numberLong": "1783955836385"
+      }
+    },
+    "previous_hash": "9a5cd4fe1343c3f5af11735e57e39c5afeb9e67785390ca5ba4efdd62d348e75",
+    "current_hash": "3ec9866cb03d45425deb3fa39d8ed82d03b5e4e2e06a5e55850c8af02ba4a718",
+    "hmac_key_version": {
+      "$numberInt": "1"
+    }
+  }
+]

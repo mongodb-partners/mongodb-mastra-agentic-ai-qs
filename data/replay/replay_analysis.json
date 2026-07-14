@@ -1,0 +1,1260 @@
+[
+  {
+    "_id": {
+      "$oid": "6a55011ff86faddf8520e943"
+    },
+    "transaction_id": "txn-review-high",
+    "amount": {
+      "$numberInt": "75000"
+    },
+    "lane": "high_value",
+    "sender": {
+      "name": "Northwind Foods",
+      "account_number": "ACC-1001"
+    },
+    "recipient": {
+      "name": "Pacific Logistics",
+      "account_number": "ACC-5005"
+    },
+    "narrative": "High-value wire of 75000 USD from Northwind Foods to Pacific Logistics for a bulk shipment. Established counterparty, no fraud signals.",
+    "precedents": [
+      {
+        "transaction_id": "txn-high-01",
+        "text": "High-value wire of 120000 USD from Northwind Foods to Pacific Logistics for a bulk supplier shipment. Established counterparty, approved after review.",
+        "amount": {
+          "$numberInt": "120000"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-1001"
+        },
+        "recipient": {
+          "name": "Pacific Logistics",
+          "account_number": "ACC-5005"
+        },
+        "status": "approved",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.03278688524590164"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00675",
+        "text": "High-value wire of 215,962 USD from Peregrine Freight to Northwind Foods for a M&A tranche payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "amount": {
+          "$numberInt": "215962"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Peregrine Freight",
+          "account_number": "ACC-SYN-8807"
+        },
+        "recipient": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-4207"
+        },
+        "status": "approved",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.031754032258064516"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-01010",
+        "text": "High-value wire of 248,839 USD from Orchid Cosmetics to Northwind Foods for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "amount": {
+          "$numberInt": "248839"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Orchid Cosmetics",
+          "account_number": "ACC-SYN-5969"
+        },
+        "recipient": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-5474"
+        },
+        "status": "approved",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.031754032258064516"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00705",
+        "text": "High-value wire of 136,215 USD from Northwind Foods to Aurora Med Supplies for a fleet acquisition payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "amount": {
+          "$numberInt": "136215"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-7341"
+        },
+        "recipient": {
+          "name": "Aurora Med Supplies",
+          "account_number": "ACC-SYN-6137"
+        },
+        "status": "escalated",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.030798389007344232"
+        }
+      }
+    ],
+    "memory": [
+      {
+        "transaction_id": "txn-high-01",
+        "disposition": "approved",
+        "lane": "high_value"
+      },
+      {
+        "transaction_id": "txn-syn-00675",
+        "disposition": "approved",
+        "lane": "high_value"
+      }
+    ],
+    "ring": {
+      "network_size": {
+        "$numberInt": "0"
+      },
+      "unique_accounts": {
+        "$numberInt": "0"
+      },
+      "circular_flow": false,
+      "layering": false,
+      "suspicious_patterns": false,
+      "edges": []
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberDouble": "0.85"
+      },
+      "violations": [
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "severity": "medium",
+          "cited_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released."
+        }
+      ],
+      "dropped_citations": [],
+      "held": false,
+      "retrieved": [
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "policy_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released.",
+          "category": "fraud",
+          "severity": "medium"
+        },
+        {
+          "policy_code": "AML-RING-001",
+          "policy_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "SANC-SCREEN-001",
+          "policy_text": "A transaction whose counterparty matches a sanctions or watchlist screening hit must be blocked and reported; it may not be approved under any circumstances.",
+          "category": "sanctions",
+          "severity": "critical"
+        },
+        {
+          "policy_code": "AML-STRUCT-001",
+          "policy_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "policy_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected.",
+          "category": "fraud",
+          "severity": "high"
+        }
+      ]
+    },
+    "verdict": {
+      "recommendation": "approve",
+      "confidence": {
+        "$numberInt": "85"
+      },
+      "risk_factors": [],
+      "rationale": "This transaction matches the exact profile of txn-high-01: a $75,000 wire from Northwind Foods to Pacific Logistics for bulk shipment. Precedent txn-high-01 ($120,000) involved the same parties in the same business context and was approved after review. The transaction amount is in line with approved high-value commodity/logistics payments (txn-syn-00878: $76,578 approved). Established counterparty relationship, clear business purpose (bulk shipment), and no fraud signals align with clean approval lane. Confidence reduced slightly from maximum due to high-value threshold requiring standard documentation verification, but risk profile is low."
+    },
+    "decision": {
+      "disposition": "escalate",
+      "decided_by": "reconciler",
+      "risk_factors": [
+        "high_value_approval",
+        "low_confidence"
+      ],
+      "rationale": "This transaction matches the exact profile of txn-high-01: a $75,000 wire from Northwind Foods to Pacific Logistics for bulk shipment. Precedent txn-high-01 ($120,000) involved the same parties in the same business context and was approved after review. The transaction amount is in line with approved high-value commodity/logistics payments (txn-syn-00878: $76,578 approved). Established counterparty relationship, clear business purpose (bulk shipment), and no fraud signals align with clean approval lane. Confidence reduced slightly from maximum due to high-value threshold requiring standard documentation verification, but risk profile is low."
+    },
+    "phase": "suspended",
+    "evidence_hash": "87513aaf06e4911b3d868f48cb00d9acb064638506c8b909082d1521da411cc3",
+    "snapshot": {
+      "transaction_id": "txn-review-high",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "75000"
+      },
+      "risk_factors": [
+        "high_value_approval",
+        "low_confidence"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.85"
+      }
+    },
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext",
+      "memory",
+      "graph",
+      "governance",
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955743284"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a550122f86faddf8520e945"
+    },
+    "transaction_id": "txn-review-sanctions",
+    "amount": {
+      "$numberInt": "18000"
+    },
+    "lane": "sanctions",
+    "sender": {
+      "name": "Delta Manufacturing",
+      "account_number": "ACC-6001"
+    },
+    "recipient": {
+      "name": "Meridian Exports",
+      "account_number": "ACC-6600"
+    },
+    "narrative": "Wire of 18000 USD from Delta Manufacturing to Meridian Exports; recipient appears on a sanctions watchlist screening hit.",
+    "precedents": [],
+    "memory": [],
+    "ring": {
+      "edges": []
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberInt": "0"
+      },
+      "violations": [],
+      "held": false,
+      "dropped_citations": []
+    },
+    "verdict": {
+      "recommendation": "reject",
+      "confidence": {
+        "$numberInt": "100"
+      },
+      "risk_factors": [
+        "sanctions_screening_hit"
+      ],
+      "rationale": "Counterparty matched a sanctions watchlist. Hard compliance reject; agent not consulted."
+    },
+    "decision": {
+      "disposition": "reject",
+      "decided_by": "compliance",
+      "risk_factors": [
+        "sanctions_screening_hit"
+      ],
+      "rationale": "Counterparty matched a sanctions watchlist. Hard compliance reject; agent not consulted."
+    },
+    "phase": "committed",
+    "capabilities": [
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955746354"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a550139f86faddf8520e949"
+    },
+    "transaction_id": "txn-review-struct",
+    "amount": {
+      "$numberInt": "4950"
+    },
+    "lane": "structuring",
+    "sender": {
+      "name": "Cash Corner",
+      "account_number": "ACC-3001"
+    },
+    "recipient": {
+      "name": "Cash Corner",
+      "account_number": "ACC-3001"
+    },
+    "narrative": "Cash deposit of 4950 USD, just under the 5000 reporting threshold, following two similar sub-threshold deposits.",
+    "precedents": [
+      {
+        "transaction_id": "txn-struct-01",
+        "text": "Cash deposit of 4950 USD, just under the 5000 reporting threshold. Third sub-threshold deposit this week from the same account.",
+        "amount": {
+          "$numberInt": "4950"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Cash Corner",
+          "account_number": "ACC-3001"
+        },
+        "recipient": {
+          "name": "Cash Corner",
+          "account_number": "ACC-3001"
+        },
+        "status": "rejected",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.03278688524590164"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00079",
+        "text": "Cash deposit of 4,921 USD just under the 5000 USD reporting threshold at Quanta Fabrication; deposit 3 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "amount": {
+          "$numberInt": "4921"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Quanta Fabrication",
+          "account_number": "ACC-SYN-5210"
+        },
+        "recipient": {
+          "name": "Copperline Utilities",
+          "account_number": "ACC-SYN-8343"
+        },
+        "status": "rejected",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.031024531024531024"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00361",
+        "text": "Cash deposit of 4,934 USD just under the 5000 USD reporting threshold at Quanta Fabrication; deposit 4 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "amount": {
+          "$numberInt": "4934"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Quanta Fabrication",
+          "account_number": "ACC-SYN-5009"
+        },
+        "recipient": {
+          "name": "Quanta Fabrication",
+          "account_number": "ACC-SYN-5529"
+        },
+        "status": "rejected",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.02976190476190476"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00109",
+        "text": "Cash deposit of 4,985 USD just under the 5000 USD reporting threshold at Foundry Metalworks; deposit 5 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "amount": {
+          "$numberInt": "4985"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Foundry Metalworks",
+          "account_number": "ACC-SYN-3301"
+        },
+        "recipient": {
+          "name": "Foundry Metalworks",
+          "account_number": "ACC-SYN-1527"
+        },
+        "status": "escalated",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.029386529386529386"
+        }
+      }
+    ],
+    "memory": [
+      {
+        "transaction_id": "txn-struct-01",
+        "disposition": "rejected",
+        "lane": "structuring"
+      },
+      {
+        "transaction_id": "txn-syn-00079",
+        "disposition": "rejected",
+        "lane": "structuring"
+      }
+    ],
+    "ring": {
+      "network_size": {
+        "$numberInt": "3"
+      },
+      "unique_accounts": {
+        "$numberInt": "1"
+      },
+      "circular_flow": true,
+      "layering": false,
+      "suspicious_patterns": true,
+      "edges": [
+        {
+          "from": "ACC-3001",
+          "to": "ACC-3001",
+          "amount": {
+            "$numberInt": "4950"
+          }
+        },
+        {
+          "from": "ACC-3001",
+          "to": "ACC-3001",
+          "amount": {
+            "$numberInt": "4950"
+          }
+        },
+        {
+          "from": "ACC-3001",
+          "to": "ACC-3001",
+          "amount": {
+            "$numberInt": "4900"
+          }
+        }
+      ]
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      },
+      "violations": [
+        {
+          "policy_code": "AML-STRUCT-001",
+          "severity": "high",
+          "cited_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved."
+        }
+      ],
+      "dropped_citations": [],
+      "held": false,
+      "retrieved": [
+        {
+          "policy_code": "AML-STRUCT-001",
+          "policy_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "policy_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released.",
+          "category": "fraud",
+          "severity": "medium"
+        },
+        {
+          "policy_code": "AML-RING-001",
+          "policy_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "policy_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected.",
+          "category": "fraud",
+          "severity": "high"
+        },
+        {
+          "policy_code": "SANC-SCREEN-001",
+          "policy_text": "A transaction whose counterparty matches a sanctions or watchlist screening hit must be blocked and reported; it may not be approved under any circumstances.",
+          "category": "sanctions",
+          "severity": "critical"
+        }
+      ]
+    },
+    "verdict": {
+      "recommendation": "reject",
+      "confidence": {
+        "$numberInt": "95"
+      },
+      "risk_factors": [
+        "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+        "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
+        "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
+        "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
+        "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count"
+      ],
+      "rationale": "This transaction exhibits classic structuring characteristics: a cash deposit deliberately kept below the $5,000 reporting threshold, in a series of multiple sub-threshold deposits. Hybrid search and recall verdicts returned five directly analogous precedents, four of which were rejected and one escalated. The most similar case (txn-struct-01) had identical amount ($4,950) and identical pattern (third sub-threshold deposit this week) and was rejected. Structuring—deliberately splitting deposits to avoid currency transaction reporting—is unlawful independent of the legitimacy of the funds themselves. The pattern and amount meet all hallmarks of structuring activity. Rejection is consistent with institutional precedent and regulatory standards."
+    },
+    "decision": {
+      "disposition": "escalate",
+      "decided_by": "reconciler",
+      "risk_factors": [
+        "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+        "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
+        "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
+        "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
+        "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+        "structuring_amount",
+        "fraud_ring_suspicious"
+      ],
+      "rationale": "This transaction exhibits classic structuring characteristics: a cash deposit deliberately kept below the $5,000 reporting threshold, in a series of multiple sub-threshold deposits. Hybrid search and recall verdicts returned five directly analogous precedents, four of which were rejected and one escalated. The most similar case (txn-struct-01) had identical amount ($4,950) and identical pattern (third sub-threshold deposit this week) and was rejected. Structuring—deliberately splitting deposits to avoid currency transaction reporting—is unlawful independent of the legitimacy of the funds themselves. The pattern and amount meet all hallmarks of structuring activity. Rejection is consistent with institutional precedent and regulatory standards."
+    },
+    "phase": "suspended",
+    "evidence_hash": "e6ee67f60e063ec4e78f08caffcf50f407a885e49749e5b32cc71aeb387e177e",
+    "snapshot": {
+      "transaction_id": "txn-review-struct",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "4950"
+      },
+      "risk_factors": [
+        "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+        "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
+        "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
+        "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
+        "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+        "structuring_amount",
+        "fraud_ring_suspicious"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      }
+    },
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext",
+      "memory",
+      "graph",
+      "governance",
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955769619"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a55014af86faddf8520e94b"
+    },
+    "transaction_id": "txn-review-clean",
+    "amount": {
+      "$numberInt": "3200"
+    },
+    "lane": "clean_approve",
+    "sender": {
+      "name": "Northwind Foods",
+      "account_number": "ACC-1001"
+    },
+    "recipient": {
+      "name": "J. Rivera",
+      "account_number": "ACC-1002"
+    },
+    "narrative": "Recurring payroll credit of 3200 USD from Northwind Foods to a long-tenured employee account.",
+    "precedents": [
+      {
+        "transaction_id": "txn-clean-01",
+        "text": "Recurring payroll credit of 3200 USD from Northwind Foods to a long-tenured employee account. Consistent monthly pattern, no anomalies.",
+        "amount": {
+          "$numberInt": "3200"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-1001"
+        },
+        "recipient": {
+          "name": "J. Rivera",
+          "account_number": "ACC-1002"
+        },
+        "status": "approved",
+        "lane": "clean_approve",
+        "score": {
+          "$numberDouble": "0.03278688524590164"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00750",
+        "text": "Recurring payroll credit of 7,336 USD from Northwind Foods to W. Calloway. Established relationship, consistent with prior activity, no anomalies.",
+        "amount": {
+          "$numberInt": "7336"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-9035"
+        },
+        "recipient": {
+          "name": "W. Calloway",
+          "account_number": "ACC-SYN-8950"
+        },
+        "status": "approved",
+        "lane": "clean_approve",
+        "score": {
+          "$numberDouble": "0.03225806451612903"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00631",
+        "text": "Recurring payroll credit of 3,125 USD from Northwind Foods to Orchid Cosmetics. Established relationship, consistent with prior activity, no anomalies.",
+        "amount": {
+          "$numberInt": "3125"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-3836"
+        },
+        "recipient": {
+          "name": "Orchid Cosmetics",
+          "account_number": "ACC-SYN-7138"
+        },
+        "status": "approved",
+        "lane": "clean_approve",
+        "score": {
+          "$numberDouble": "0.0315136476426799"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00521",
+        "text": "Recurring payroll credit of 581 USD from Northwind Foods to Halcyon Motors. Established relationship, consistent with prior activity, no anomalies.",
+        "amount": {
+          "$numberInt": "581"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-6333"
+        },
+        "recipient": {
+          "name": "Halcyon Motors",
+          "account_number": "ACC-SYN-1522"
+        },
+        "status": "approved",
+        "lane": "clean_approve",
+        "score": {
+          "$numberDouble": "0.03128054740957967"
+        }
+      }
+    ],
+    "memory": [
+      {
+        "transaction_id": "txn-clean-01",
+        "disposition": "approved",
+        "lane": "clean_approve"
+      },
+      {
+        "transaction_id": "txn-syn-00750",
+        "disposition": "approved",
+        "lane": "clean_approve"
+      }
+    ],
+    "ring": {
+      "network_size": {
+        "$numberInt": "0"
+      },
+      "unique_accounts": {
+        "$numberInt": "0"
+      },
+      "circular_flow": false,
+      "layering": false,
+      "suspicious_patterns": false,
+      "edges": []
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberInt": "1"
+      },
+      "violations": [],
+      "dropped_citations": [],
+      "held": false,
+      "retrieved": [
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "policy_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released.",
+          "category": "fraud",
+          "severity": "medium"
+        },
+        {
+          "policy_code": "AML-RING-001",
+          "policy_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "AML-STRUCT-001",
+          "policy_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "policy_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected.",
+          "category": "fraud",
+          "severity": "high"
+        },
+        {
+          "policy_code": "SANC-SCREEN-001",
+          "policy_text": "A transaction whose counterparty matches a sanctions or watchlist screening hit must be blocked and reported; it may not be approved under any circumstances.",
+          "category": "sanctions",
+          "severity": "critical"
+        }
+      ]
+    },
+    "verdict": {
+      "recommendation": "approve",
+      "confidence": {
+        "$numberInt": "95"
+      },
+      "risk_factors": [],
+      "rationale": "This transaction matches the exact profile of legitimate recurring payroll credits from an established employer to a long-tenured employee. Hybrid search retrieved an identical precedent (txn-clean-01: 3200 USD from Northwind Foods) that was approved. Recall verdicts confirm a consistent pattern: five similar recurring payroll credits from established employers to known employees, all approved in the clean_approve lane with no anomalies. The transaction exhibits standard payroll characteristics: reasonable amount, consistent monthly pattern, established relationship between employer and employee, and no structuring or fund-layering indicators. No fund-tracing is required as this is a straightforward incoming payroll deposit with no suspicious circular flow or mule account patterns."
+    },
+    "decision": {
+      "disposition": "approve",
+      "decided_by": "agent",
+      "risk_factors": [],
+      "rationale": "This transaction matches the exact profile of legitimate recurring payroll credits from an established employer to a long-tenured employee. Hybrid search retrieved an identical precedent (txn-clean-01: 3200 USD from Northwind Foods) that was approved. Recall verdicts confirm a consistent pattern: five similar recurring payroll credits from established employers to known employees, all approved in the clean_approve lane with no anomalies. The transaction exhibits standard payroll characteristics: reasonable amount, consistent monthly pattern, established relationship between employer and employee, and no structuring or fund-layering indicators. No fund-tracing is required as this is a straightforward incoming payroll deposit with no suspicious circular flow or mule account patterns."
+    },
+    "phase": "committed",
+    "evidence_hash": "2423df5e52398f24295fa1e2856c1ba288323d2fe0e175bba77d8ec1d69d0ed9",
+    "snapshot": {
+      "transaction_id": "txn-review-clean",
+      "proposed_disposition": "approve",
+      "amount": {
+        "$numberInt": "3200"
+      },
+      "risk_factors": [],
+      "compliance_score": {
+        "$numberInt": "1"
+      }
+    },
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext",
+      "memory",
+      "graph",
+      "governance",
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955786103"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a55017ef86faddf8520e94e"
+    },
+    "transaction_id": "txn-review-reject",
+    "amount": {
+      "$numberInt": "1980"
+    },
+    "lane": "clear_reject",
+    "sender": {
+      "name": "K. Osei",
+      "account_number": "ACC-4001"
+    },
+    "recipient": {
+      "name": "QuickGadgets Online",
+      "account_number": "ACC-4090"
+    },
+    "narrative": "Card-not-present charge of 1980 USD to an unrecognized overseas merchant immediately after an unusual login. Matches known account-takeover fraud.",
+    "precedents": [
+      {
+        "transaction_id": "txn-reject-01",
+        "text": "Card-not-present charge of 2100 USD to an unrecognized merchant minutes after a foreign login. Confirmed account takeover, chargeback filed.",
+        "amount": {
+          "$numberInt": "2100"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "K. Osei",
+          "account_number": "ACC-4001"
+        },
+        "recipient": {
+          "name": "QuickGadgets Online",
+          "account_number": "ACC-4090"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.03278688524590164"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00477",
+        "text": "Transfer of 1,160 USD from Y. Dominguez to Foundry Metalworks; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "1160"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Y. Dominguez",
+          "account_number": "ACC-SYN-4882"
+        },
+        "recipient": {
+          "name": "Foundry Metalworks",
+          "account_number": "ACC-SYN-7372"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.03200204813108039"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00862",
+        "text": "Transfer of 298 USD from M. Okafor to Bluepeak Analytics; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "298"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "M. Okafor",
+          "account_number": "ACC-SYN-6915"
+        },
+        "recipient": {
+          "name": "Bluepeak Analytics",
+          "account_number": "ACC-SYN-5564"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.0315136476426799"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00003",
+        "text": "Transfer of 189 USD from D. Kowalski to Foundry Metalworks; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "189"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "D. Kowalski",
+          "account_number": "ACC-SYN-6330"
+        },
+        "recipient": {
+          "name": "Foundry Metalworks",
+          "account_number": "ACC-SYN-1283"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.03128054740957967"
+        }
+      }
+    ],
+    "memory": [
+      {
+        "transaction_id": "txn-reject-01",
+        "disposition": "rejected",
+        "lane": "clear_reject"
+      },
+      {
+        "transaction_id": "txn-syn-00477",
+        "disposition": "rejected",
+        "lane": "clear_reject"
+      }
+    ],
+    "ring": {
+      "network_size": {
+        "$numberInt": "0"
+      },
+      "unique_accounts": {
+        "$numberInt": "0"
+      },
+      "circular_flow": false,
+      "layering": false,
+      "suspicious_patterns": false,
+      "edges": []
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      },
+      "violations": [
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "severity": "high",
+          "cited_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected."
+        }
+      ],
+      "dropped_citations": [],
+      "held": false,
+      "retrieved": [
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "policy_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected.",
+          "category": "fraud",
+          "severity": "high"
+        },
+        {
+          "policy_code": "AML-RING-001",
+          "policy_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "policy_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released.",
+          "category": "fraud",
+          "severity": "medium"
+        },
+        {
+          "policy_code": "SANC-SCREEN-001",
+          "policy_text": "A transaction whose counterparty matches a sanctions or watchlist screening hit must be blocked and reported; it may not be approved under any circumstances.",
+          "category": "sanctions",
+          "severity": "critical"
+        },
+        {
+          "policy_code": "AML-STRUCT-001",
+          "policy_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        }
+      ]
+    },
+    "verdict": {
+      "recommendation": "reject",
+      "confidence": {
+        "$numberInt": "98"
+      },
+      "risk_factors": [
+        "Card-not-present charge to unrecognized overseas merchant",
+        "Unusual login immediately preceding transaction",
+        "Matches known account-takeover fraud pattern",
+        "All 5 precedent cases with identical profile were rejected as confirmed fraud",
+        "Transaction amount of 1980 USD within range of prior fraudulent takeovers (465-2385 USD)"
+      ],
+      "rationale": "This transaction exhibits a classic account-takeover fraud signature: card-not-present charge to an unrecognized overseas merchant occurring immediately after suspicious login activity. The precedent pool is unanimous: five similar transactions (txn-reject-01, txn-syn-00232, txn-syn-00044, txn-syn-00803, txn-syn-00477) were all rejected as confirmed fraud in the 'clear_reject' lane, with amounts ranging from 465 to 2385 USD. The current 1980 USD charge falls squarely within this confirmed-fraud band. The temporal proximity of the unusual login to the CNP charge, combined with the unrecognized merchant and overseas location, strongly indicate compromised account credentials and fraudulent use. No legitimate transaction factors mitigate these signals."
+    },
+    "decision": {
+      "disposition": "reject",
+      "decided_by": "agent",
+      "risk_factors": [
+        "Card-not-present charge to unrecognized overseas merchant",
+        "Unusual login immediately preceding transaction",
+        "Matches known account-takeover fraud pattern",
+        "All 5 precedent cases with identical profile were rejected as confirmed fraud",
+        "Transaction amount of 1980 USD within range of prior fraudulent takeovers (465-2385 USD)"
+      ],
+      "rationale": "This transaction exhibits a classic account-takeover fraud signature: card-not-present charge to an unrecognized overseas merchant occurring immediately after suspicious login activity. The precedent pool is unanimous: five similar transactions (txn-reject-01, txn-syn-00232, txn-syn-00044, txn-syn-00803, txn-syn-00477) were all rejected as confirmed fraud in the 'clear_reject' lane, with amounts ranging from 465 to 2385 USD. The current 1980 USD charge falls squarely within this confirmed-fraud band. The temporal proximity of the unusual login to the CNP charge, combined with the unrecognized merchant and overseas location, strongly indicate compromised account credentials and fraudulent use. No legitimate transaction factors mitigate these signals."
+    },
+    "phase": "committed",
+    "evidence_hash": "0bd7ba2c4d9f11c1457989b4c9162e8592eaf44de1cd097a906664d427ebc947",
+    "snapshot": {
+      "transaction_id": "txn-review-reject",
+      "proposed_disposition": "reject",
+      "amount": {
+        "$numberInt": "1980"
+      },
+      "risk_factors": [
+        "Card-not-present charge to unrecognized overseas merchant",
+        "Unusual login immediately preceding transaction",
+        "Matches known account-takeover fraud pattern",
+        "All 5 precedent cases with identical profile were rejected as confirmed fraud",
+        "Transaction amount of 1980 USD within range of prior fraudulent takeovers (465-2385 USD)"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      }
+    },
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext",
+      "memory",
+      "graph",
+      "governance",
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955838088"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a55019cf86faddf8520e951"
+    },
+    "transaction_id": "txn-review-ring",
+    "amount": {
+      "$numberInt": "900"
+    },
+    "lane": "ring",
+    "sender": {
+      "name": "Quartz Trading",
+      "account_number": "ACC-RING-A"
+    },
+    "recipient": {
+      "name": "Vertex Holdings",
+      "account_number": "ACC-RING-B"
+    },
+    "narrative": "Transfer of 900 USD from Quartz Trading to Vertex Holdings; sender account is part of a suspected mule network with circular flows.",
+    "precedents": [
+      {
+        "transaction_id": "txn-ring-01",
+        "text": "Transfer of 920 USD from Quartz Trading to Vertex Holdings, part of a rapid multi-hop chain across shell accounts.",
+        "amount": {
+          "$numberInt": "920"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Quartz Trading",
+          "account_number": "ACC-RING-A"
+        },
+        "recipient": {
+          "name": "Vertex Holdings",
+          "account_number": "ACC-RING-B"
+        },
+        "status": "rejected",
+        "lane": "ring",
+        "score": {
+          "$numberDouble": "0.03278688524590164"
+        }
+      },
+      {
+        "transaction_id": "txn-ring-02",
+        "text": "Transfer of 880 USD from Vertex Holdings to Slate Partners, continuing the layering chain with small sub-threshold amounts.",
+        "amount": {
+          "$numberInt": "880"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Vertex Holdings",
+          "account_number": "ACC-RING-B"
+        },
+        "recipient": {
+          "name": "Slate Partners",
+          "account_number": "ACC-RING-C"
+        },
+        "status": "rejected",
+        "lane": "ring",
+        "score": {
+          "$numberDouble": "0.03200204813108039"
+        }
+      },
+      {
+        "transaction_id": "txn-ring-03",
+        "text": "Transfer of 850 USD from Slate Partners back to Quartz Trading, closing a circular money-flow loop across the network.",
+        "amount": {
+          "$numberInt": "850"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Slate Partners",
+          "account_number": "ACC-RING-C"
+        },
+        "recipient": {
+          "name": "Quartz Trading",
+          "account_number": "ACC-RING-A"
+        },
+        "status": "rejected",
+        "lane": "ring",
+        "score": {
+          "$numberDouble": "0.031754032258064516"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00095",
+        "text": "Transfer of 939 USD from Basalt Construction to Basalt Construction, one hop in a rapid multi-account chain that returns funds near their origin. Consistent with mule-ring layering.",
+        "amount": {
+          "$numberInt": "939"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Basalt Construction",
+          "account_number": "ACC-SYNRING-2B"
+        },
+        "recipient": {
+          "name": "Basalt Construction",
+          "account_number": "ACC-SYNRING-2C"
+        },
+        "status": "escalated",
+        "lane": "ring",
+        "score": {
+          "$numberDouble": "0.028665028665028666"
+        }
+      }
+    ],
+    "memory": [
+      {
+        "transaction_id": "txn-ring-01",
+        "disposition": "rejected",
+        "lane": "ring"
+      },
+      {
+        "transaction_id": "txn-ring-02",
+        "disposition": "rejected",
+        "lane": "ring"
+      }
+    ],
+    "ring": {
+      "network_size": {
+        "$numberInt": "4"
+      },
+      "unique_accounts": {
+        "$numberInt": "3"
+      },
+      "circular_flow": true,
+      "layering": true,
+      "suspicious_patterns": true,
+      "edges": [
+        {
+          "from": "ACC-RING-A",
+          "to": "ACC-RING-B",
+          "amount": {
+            "$numberInt": "920"
+          }
+        },
+        {
+          "from": "ACC-RING-A",
+          "to": "ACC-RING-B",
+          "amount": {
+            "$numberInt": "900"
+          }
+        },
+        {
+          "from": "ACC-RING-C",
+          "to": "ACC-RING-A",
+          "amount": {
+            "$numberInt": "850"
+          }
+        },
+        {
+          "from": "ACC-RING-B",
+          "to": "ACC-RING-C",
+          "amount": {
+            "$numberInt": "880"
+          }
+        }
+      ]
+    },
+    "governance": {
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      },
+      "violations": [
+        {
+          "policy_code": "AML-RING-001",
+          "severity": "high",
+          "cited_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved."
+        }
+      ],
+      "dropped_citations": [],
+      "held": false,
+      "retrieved": [
+        {
+          "policy_code": "AML-RING-001",
+          "policy_text": "A transaction originating from an account that is part of a circular money-flow network (mule ring / layering) must be escalated for investigation and may not be auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "FRAUD-HIGHVAL-001",
+          "policy_text": "A high-value transaction at or above 50000 USD that would otherwise be approved must be escalated for a second-line review before funds are released.",
+          "category": "fraud",
+          "severity": "medium"
+        },
+        {
+          "policy_code": "AML-STRUCT-001",
+          "policy_text": "A cash deposit or transfer just under the 5000 USD currency-transaction reporting threshold, especially in a repeated sub-threshold pattern, is structuring and must be escalated for SIU review rather than auto-approved.",
+          "category": "aml",
+          "severity": "high"
+        },
+        {
+          "policy_code": "SANC-SCREEN-001",
+          "policy_text": "A transaction whose counterparty matches a sanctions or watchlist screening hit must be blocked and reported; it may not be approved under any circumstances.",
+          "category": "sanctions",
+          "severity": "critical"
+        },
+        {
+          "policy_code": "FRAUD-ATO-001",
+          "policy_text": "A card-not-present charge to an unrecognized merchant immediately following an unusual or foreign login is consistent with account takeover and must be rejected.",
+          "category": "fraud",
+          "severity": "high"
+        }
+      ]
+    },
+    "verdict": {
+      "recommendation": "escalate",
+      "confidence": {
+        "$numberInt": "78"
+      },
+      "risk_factors": [
+        "Sender account suspected mule network per user brief",
+        "Fund trace returned zero network size—possible lookup failure or account masking",
+        "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
+        "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
+        "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics"
+      ],
+      "rationale": "The hybrid search identified five closely analogous precedent cases involving amounts between $683–$1,251 USD transferred between trading/logistics entities in rapid multi-account chains; all were flagged as ring/mule-ring layering and rejected. The recalled verdicts confirm the same pattern: 4 rejections and 1 escalation at similar amounts. The present transaction ($900 USD from Quartz Trading to Vertex Holdings) matches this profile—notably just under common reporting thresholds, which is consistent with structuring. Although the fund trace on 'Quartz Trading' returned no network data (possible account masking or system limitation), the user brief explicitly flags the sender as part of a suspected mule network. Given the precedent rejection rate, the structuring-like amount, and the confirmed suspicion, automatic rejection would be justified. However, the one precedent escalation at $975 USD (txn-syn-01187) suggests institutional precedent for manual review of borderline cases. Escalation preserves human oversight on a high-confidence but not certain signal, allowing a policy layer and manual reviewer to weigh additional context (counterparty reputation, historical patterns, etc.)."
+    },
+    "decision": {
+      "disposition": "escalate",
+      "decided_by": "reconciler",
+      "risk_factors": [
+        "Sender account suspected mule network per user brief",
+        "Fund trace returned zero network size—possible lookup failure or account masking",
+        "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
+        "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
+        "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+        "fraud_ring_suspicious",
+        "low_confidence"
+      ],
+      "rationale": "The hybrid search identified five closely analogous precedent cases involving amounts between $683–$1,251 USD transferred between trading/logistics entities in rapid multi-account chains; all were flagged as ring/mule-ring layering and rejected. The recalled verdicts confirm the same pattern: 4 rejections and 1 escalation at similar amounts. The present transaction ($900 USD from Quartz Trading to Vertex Holdings) matches this profile—notably just under common reporting thresholds, which is consistent with structuring. Although the fund trace on 'Quartz Trading' returned no network data (possible account masking or system limitation), the user brief explicitly flags the sender as part of a suspected mule network. Given the precedent rejection rate, the structuring-like amount, and the confirmed suspicion, automatic rejection would be justified. However, the one precedent escalation at $975 USD (txn-syn-01187) suggests institutional precedent for manual review of borderline cases. Escalation preserves human oversight on a high-confidence but not certain signal, allowing a policy layer and manual reviewer to weigh additional context (counterparty reputation, historical patterns, etc.)."
+    },
+    "phase": "suspended",
+    "evidence_hash": "8e3abe2906901e8d08ce8dbc14131f996627cb6863e1f2c6a73eb4ed2e1dd47a",
+    "snapshot": {
+      "transaction_id": "txn-review-ring",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "900"
+      },
+      "risk_factors": [
+        "Sender account suspected mule network per user brief",
+        "Fund trace returned zero network size—possible lookup failure or account masking",
+        "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
+        "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
+        "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+        "fraud_ring_suspicious",
+        "low_confidence"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      }
+    },
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext",
+      "memory",
+      "graph",
+      "governance",
+      "durable",
+      "audit"
+    ],
+    "updated_at": {
+      "$date": {
+        "$numberLong": "1783955867790"
+      }
+    }
+  }
+]

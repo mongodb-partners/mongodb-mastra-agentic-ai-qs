@@ -1,0 +1,9 @@
+node_modules
+dist
+.mastra
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.playwright-cli/

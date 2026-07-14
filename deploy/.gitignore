@@ -1,0 +1,14 @@
+# Terraform state (may contain secrets) and local runtime artifacts — never commit.
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+tfplan
+# Filled variable files (secrets); the .example is the only tfvars that ships.
+*.tfvars
+!*.tfvars.example
+# SSH keys, deploy logs.
+*.pem
+deploy.log
+# Generated secrets persisted by deploy.sh (Atlas DB password, audit/session secrets) — never commit.
+.deploy-secrets.env

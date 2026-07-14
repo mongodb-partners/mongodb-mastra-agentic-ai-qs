@@ -1,0 +1,118 @@
+[
+  {
+    "_id": {
+      "$oid": "6a55011ef86faddf8520e941"
+    },
+    "transaction_id": "txn-review-high",
+    "created_at": {
+      "$date": {
+        "$numberLong": "1783955742714"
+      }
+    },
+    "evidence_hash": "87513aaf06e4911b3d868f48cb00d9acb064638506c8b909082d1521da411cc3",
+    "flag_reason": "high_value_approval",
+    "rules_triggered": [
+      "high_value_approval",
+      "low_confidence"
+    ],
+    "snapshot": {
+      "transaction_id": "txn-review-high",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "75000"
+      },
+      "risk_factors": [
+        "high_value_approval",
+        "low_confidence"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.85"
+      }
+    },
+    "status": "pending_review"
+  },
+  {
+    "_id": {
+      "$oid": "6a550139f86faddf8520e947"
+    },
+    "transaction_id": "txn-review-struct",
+    "created_at": {
+      "$date": {
+        "$numberLong": "1783955769045"
+      }
+    },
+    "evidence_hash": "e6ee67f60e063ec4e78f08caffcf50f407a885e49749e5b32cc71aeb387e177e",
+    "flag_reason": "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+    "rules_triggered": [
+      "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+      "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
+      "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
+      "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
+      "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+      "structuring_amount",
+      "fraud_ring_suspicious"
+    ],
+    "snapshot": {
+      "transaction_id": "txn-review-struct",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "4950"
+      },
+      "risk_factors": [
+        "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+        "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
+        "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
+        "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
+        "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+        "structuring_amount",
+        "fraud_ring_suspicious"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      }
+    },
+    "status": "pending_review"
+  },
+  {
+    "_id": {
+      "$oid": "6a55019bf86faddf8520e94f"
+    },
+    "transaction_id": "txn-review-ring",
+    "created_at": {
+      "$date": {
+        "$numberLong": "1783955867219"
+      }
+    },
+    "evidence_hash": "8e3abe2906901e8d08ce8dbc14131f996627cb6863e1f2c6a73eb4ed2e1dd47a",
+    "flag_reason": "Sender account suspected mule network per user brief",
+    "rules_triggered": [
+      "Sender account suspected mule network per user brief",
+      "Fund trace returned zero network size—possible lookup failure or account masking",
+      "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
+      "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
+      "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+      "fraud_ring_suspicious",
+      "low_confidence"
+    ],
+    "snapshot": {
+      "transaction_id": "txn-review-ring",
+      "proposed_disposition": "escalate",
+      "amount": {
+        "$numberInt": "900"
+      },
+      "risk_factors": [
+        "Sender account suspected mule network per user brief",
+        "Fund trace returned zero network size—possible lookup failure or account masking",
+        "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
+        "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
+        "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+        "fraud_ring_suspicious",
+        "low_confidence"
+      ],
+      "compliance_score": {
+        "$numberDouble": "0.75"
+      }
+    },
+    "status": "pending_review"
+  }
+]

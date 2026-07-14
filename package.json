@@ -1,0 +1,40 @@
+{
+  "name": "mongodb-mastra-agentic-ai-qs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx src/server/app.ts",
+    "start": "tsx src/server/app.ts",
+    "provision": "tsx scripts/provision-and-seed.ts",
+    "seed": "tsx scripts/provision-and-seed.ts",
+    "eval": "tsx scripts/eval.ts",
+    "bake": "tsx scripts/bake-replay.ts",
+    "export:replay": "tsx scripts/export-replay.ts",
+    "restore:replay": "tsx scripts/restore-replay.ts",
+    "beat:policy": "tsx scripts/stage-beats.ts policy",
+    "beat:tamper": "tsx scripts/stage-beats.ts tamper",
+    "beat:restore": "tsx scripts/stage-beats.ts restore"
+  },
+  "dependencies": {
+    "@ai-sdk/amazon-bedrock": "5.0.17",
+    "@ai-sdk/anthropic": "4.0.12",
+    "@ai-sdk/openai": "4.0.11",
+    "@aws-sdk/credential-providers": "^3.1081.0",
+    "@hono/node-server": "^2.0.8",
+    "@mastra/core": "1.50.1",
+    "hono": "^4",
+    "mongodb": "^6",
+    "voyageai": "0.3.1",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "mastra": "^1.18.0",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "transaction_id": "txn-clean-01",
+    "text": "Recurring payroll credit of 3200 USD from Northwind Foods to a long-tenured employee account. Consistent monthly pattern, no anomalies.",
+    "amount": 3200, "currency": "USD",
+    "sender": { "name": "Northwind Foods", "account_number": "ACC-1001" },
+    "recipient": { "name": "J. Rivera", "account_number": "ACC-1002" },
+    "status": "approved", "lane": "clean_approve", "model_used": "historical",
+    "created_at": "2026-05-02T10:00:00Z"
+  },
+  {
+    "transaction_id": "txn-review-clean",
+    "text": "Recurring payroll credit of 3200 USD from Northwind Foods to a long-tenured employee account.",
+    "amount": 3200, "currency": "USD",
+    "sender": { "name": "Northwind Foods", "account_number": "ACC-1001" },
+    "recipient": { "name": "J. Rivera", "account_number": "ACC-1002" },
+    "status": "pending", "lane": "clean_approve", "model_used": "live",
+    "created_at": "2026-06-10T09:00:00Z"
+  },
+  {
+    "transaction_id": "txn-reject-01",
+    "text": "Card-not-present charge of 2100 USD to an unrecognized merchant minutes after a foreign login. Confirmed account takeover, chargeback filed.",
+    "amount": 2100, "currency": "USD",
+    "sender": { "name": "K. Osei", "account_number": "ACC-4001" },
+    "recipient": { "name": "QuickGadgets Online", "account_number": "ACC-4090" },
+    "status": "rejected", "lane": "clear_reject", "model_used": "historical",
+    "created_at": "2026-04-22T02:15:00Z"
+  },
+  {
+    "transaction_id": "txn-review-reject",
+    "text": "Card-not-present charge of 1980 USD to an unrecognized overseas merchant immediately after an unusual login. Matches known account-takeover fraud.",
+    "amount": 1980, "currency": "USD",
+    "sender": { "name": "K. Osei", "account_number": "ACC-4001" },
+    "recipient": { "name": "QuickGadgets Online", "account_number": "ACC-4090" },
+    "status": "pending", "lane": "clear_reject", "model_used": "live",
+    "created_at": "2026-06-11T03:00:00Z"
+  },
+  {
+    "transaction_id": "txn-struct-01",
+    "text": "Cash deposit of 4950 USD, just under the 5000 reporting threshold. Third sub-threshold deposit this week from the same account.",
+    "amount": 4950, "currency": "USD",
+    "sender": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "recipient": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "status": "rejected", "lane": "structuring", "model_used": "historical",
+    "created_at": "2026-04-18T14:00:00Z"
+  },
+  {
+    "transaction_id": "txn-struct-02",
+    "text": "Cash deposit of 4900 USD just below the 5000 CTR threshold, same account, following a similar deposit yesterday.",
+    "amount": 4900, "currency": "USD",
+    "sender": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "recipient": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "status": "escalated", "lane": "structuring", "model_used": "historical",
+    "created_at": "2026-04-19T15:30:00Z"
+  },
+  {
+    "transaction_id": "txn-review-struct",
+    "text": "Cash deposit of 4950 USD, just under the 5000 reporting threshold, following two similar sub-threshold deposits.",
+    "amount": 4950, "currency": "USD",
+    "sender": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "recipient": { "name": "Cash Corner", "account_number": "ACC-3001" },
+    "status": "pending", "lane": "structuring", "model_used": "live",
+    "created_at": "2026-06-11T11:00:00Z"
+  },
+  {
+    "transaction_id": "txn-high-01",
+    "text": "High-value wire of 120000 USD from Northwind Foods to Pacific Logistics for a bulk supplier shipment. Established counterparty, approved after review.",
+    "amount": 120000, "currency": "USD",
+    "sender": { "name": "Northwind Foods", "account_number": "ACC-1001" },
+    "recipient": { "name": "Pacific Logistics", "account_number": "ACC-5005" },
+    "status": "approved", "lane": "high_value", "model_used": "historical",
+    "created_at": "2026-03-11T13:00:00Z"
+  },
+  {
+    "transaction_id": "txn-review-high",
+    "text": "High-value wire of 75000 USD from Northwind Foods to Pacific Logistics for a bulk shipment. Established counterparty, no fraud signals.",
+    "amount": 75000, "currency": "USD",
+    "sender": { "name": "Northwind Foods", "account_number": "ACC-1001" },
+    "recipient": { "name": "Pacific Logistics", "account_number": "ACC-5005" },
+    "status": "pending", "lane": "high_value", "model_used": "live",
+    "created_at": "2026-06-11T13:30:00Z"
+  },
+  {
+    "transaction_id": "txn-ring-01",
+    "text": "Transfer of 920 USD from Quartz Trading to Vertex Holdings, part of a rapid multi-hop chain across shell accounts.",
+    "amount": 920, "currency": "USD",
+    "sender": { "name": "Quartz Trading", "account_number": "ACC-RING-A" },
+    "recipient": { "name": "Vertex Holdings", "account_number": "ACC-RING-B" },
+    "status": "rejected", "lane": "ring", "model_used": "historical",
+    "created_at": "2026-03-30T08:00:00Z"
+  },
+  {
+    "transaction_id": "txn-ring-02",
+    "text": "Transfer of 880 USD from Vertex Holdings to Slate Partners, continuing the layering chain with small sub-threshold amounts.",
+    "amount": 880, "currency": "USD",
+    "sender": { "name": "Vertex Holdings", "account_number": "ACC-RING-B" },
+    "recipient": { "name": "Slate Partners", "account_number": "ACC-RING-C" },
+    "status": "rejected", "lane": "ring", "model_used": "historical",
+    "created_at": "2026-03-30T08:05:00Z"
+  },
+  {
+    "transaction_id": "txn-ring-03",
+    "text": "Transfer of 850 USD from Slate Partners back to Quartz Trading, closing a circular money-flow loop across the network.",
+    "amount": 850, "currency": "USD",
+    "sender": { "name": "Slate Partners", "account_number": "ACC-RING-C" },
+    "recipient": { "name": "Quartz Trading", "account_number": "ACC-RING-A" },
+    "status": "rejected", "lane": "ring", "model_used": "historical",
+    "created_at": "2026-03-30T08:10:00Z"
+  },
+  {
+    "transaction_id": "txn-review-ring",
+    "text": "Transfer of 900 USD from Quartz Trading to Vertex Holdings; sender account is part of a suspected mule network with circular flows.",
+    "amount": 900, "currency": "USD",
+    "sender": { "name": "Quartz Trading", "account_number": "ACC-RING-A" },
+    "recipient": { "name": "Vertex Holdings", "account_number": "ACC-RING-B" },
+    "status": "pending", "lane": "ring", "model_used": "live",
+    "created_at": "2026-06-11T12:00:00Z"
+  },
+  {
+    "transaction_id": "txn-sanctions-01",
+    "text": "Wire of 15000 USD to Meridian Exports, an entity later matched to an OFAC sanctions list. Blocked and reported.",
+    "amount": 15000, "currency": "USD",
+    "sender": { "name": "Delta Manufacturing", "account_number": "ACC-6001" },
+    "recipient": { "name": "Meridian Exports", "account_number": "ACC-6600" },
+    "status": "rejected", "lane": "sanctions", "model_used": "historical",
+    "created_at": "2026-02-14T09:45:00Z"
+  },
+  {
+    "transaction_id": "txn-review-sanctions",
+    "text": "Wire of 18000 USD from Delta Manufacturing to Meridian Exports; recipient appears on a sanctions watchlist screening hit.",
+    "amount": 18000, "currency": "USD",
+    "sender": { "name": "Delta Manufacturing", "account_number": "ACC-6001" },
+    "recipient": { "name": "Meridian Exports", "account_number": "ACC-6600" },
+    "status": "pending", "lane": "sanctions", "model_used": "live",
+    "created_at": "2026-06-11T14:00:00Z"
+  }
+]
