@@ -9,7 +9,7 @@ so **no LLM is called at runtime** and it scales to hundreds of concurrent viewe
 adjacent dependency at deploy time is Voyage, used once to embed the corpus during provisioning.
 
 ```
-┌────────── AWS VPC (10.0.0.0/16) ──────────┐         ┌── Atlas project ──┐
+┌────────── AWS VPC (10.0.0.0/16) ───────────┐        ┌── Atlas project ──┐
 │  EC2 (AL2023, m6i.large)                   │  VPC   │  M10 replica set  │
 │   nginx :80  →  app :8000  (Docker)        │ peering│  (change streams) │
 │   env from SSM Parameter Store (KMS)       │◄──────►│  192.168.248.0/21 │
