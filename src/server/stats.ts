@@ -51,6 +51,63 @@ export function medianCaseSpanMs(spans: number[]): number | null {
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
 }
 
+/** One recorded step event, reduced to the fields a latency span needs. */
+export interface SpanEvent {
+  transaction_id: string;
+  step?: string;
+  ts: Date | string | number;
+  /** Set by the run engine; absent on events recorded before run ids existed. */
+  run_id?: string;
+}
+
+/** The step that always opens an investigation — hence a run boundary for a given case. */
+const OPENING_STEP = 'triage';
+
+function msOf(ts: SpanEvent['ts']): number {
+  return ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
+}
+
+/**
+ * Per-case wall-clock durations, split on RUN BOUNDARIES.
+ *
+ * WHY THIS IS NOT `max(ts) - min(ts)` PER transaction_id: `agent_events` accumulates across runs
+ * (only a reset clears it), so a case investigated twice used to yield one span covering the IDLE
+ * GAP BETWEEN THE RUNS. Observed on the live box: a case re-run 9 minutes later reported a 573 s
+ * span, and the median of six cases came out at 290 867 ms — while every case actually completed in
+ * 6–9 s. The reported p50 was ~40× the truth and grew the longer the box stayed up.
+ *
+ * A run is delimited two ways, because we must stay correct for events recorded before `run_id`
+ * existed (a baked replay is immutable, so it can never be back-filled): a change in `run_id`, or
+ * the `triage` step that always opens a case. Events must be supplied in ascending `ts` order.
+ */
+export function caseSpansMs(events: SpanEvent[]): number[] {
+  const byCase = new Map<string, SpanEvent[]>();
+  for (const e of events) {
+    if (!e?.transaction_id) continue;
+    const t = msOf(e.ts);
+    if (!Number.isFinite(t)) continue;
+    const list = byCase.get(e.transaction_id);
+    if (list) list.push(e); else byCase.set(e.transaction_id, [e]);
+  }
+
+  const spans: number[] = [];
+  for (const list of byCase.values()) {
+    let first: number | null = null;
+    let last = 0;
+    let runId: string | undefined;
+    const close = () => { if (first !== null && last > first) spans.push(last - first); };
+
+    for (const e of list) {
+      const t = msOf(e.ts);
+      const boundary = first === null || e.step === OPENING_STEP || e.run_id !== runId;
+      if (boundary) { close(); first = t; runId = e.run_id; }
+      last = t;
+    }
+    close();
+  }
+  return spans;
+}
+
 /** Which collections the scorecard/latency/audit counts come from (working vs. immutable replay). */
 export interface StatsSource { events: string; analysis: string; audit: string }
 const DEFAULT_SOURCE: StatsSource = { events: 'agent_events', analysis: 'case_analysis', audit: 'audit_trail' };
@@ -80,12 +137,14 @@ export async function gatherStats(db: Db, src: StatsSource = DEFAULT_SOURCE): Pr
     disposition: (r as any).decision?.disposition as string,
   })));
 
-  const spans = await db.collection(src.events).aggregate([
-    { $match: { transaction_id: { $ne: '' } } },
-    { $group: { _id: '$transaction_id', first: { $min: '$ts' }, last: { $max: '$ts' } } },
-    { $project: { span: { $subtract: ['$last', '$first'] } } },
-  ]).toArray();
-  const latency = medianCaseSpanMs(spans.map(s => s.span as number).filter(n => Number.isFinite(n) && n > 0));
+  // Ascending `ts` is REQUIRED: caseSpansMs closes a span when it sees the next run's opening
+  // event, so out-of-order input would fabricate spans. Project only what a span needs.
+  const events = await db.collection(src.events)
+    .find({ transaction_id: { $nin: ['', null] } },
+      { projection: { _id: 0, transaction_id: 1, step: 1, ts: 1, run_id: 1 } })
+    .sort({ ts: 1 })
+    .toArray();
+  const latency = medianCaseSpanMs(caseSpansMs(events as unknown as SpanEvent[]));
 
   return {
     counts: {
