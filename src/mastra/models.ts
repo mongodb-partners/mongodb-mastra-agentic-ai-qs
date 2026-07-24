@@ -4,11 +4,19 @@ import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { Config } from '../config';
 
+/**
+ * Per-model output ceiling. Keys are matched EXACTLY against the configured model id, so a Bedrock
+ * deployment must list its own fully-qualified ids ('us.anthropic.…') alongside the direct-API
+ * names — otherwise it silently gets the conservative fallback below, which can truncate a long
+ * rationale mid-sentence. Anything unlisted still works; it just gets 4096.
+ */
 const MAX_TOKENS: Record<string, number> = {
   'claude-opus-4-8': 8192,
   'claude-sonnet-5': 8192,
   'claude-haiku-4-5': 8192,
   'us.anthropic.claude-haiku-4-5-20251001-v1:0': 8192,
+  'us.anthropic.claude-sonnet-4-6': 8192,
+  'us.anthropic.claude-opus-5': 8192,
 };
 
 /** Models that reject an explicit temperature field entirely. */

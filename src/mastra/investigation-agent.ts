@@ -1,6 +1,7 @@
 import { Agent } from '@mastra/core/agent';
 import { z } from 'zod';
 import type { Config } from '../config';
+import { logger } from '../observability/logger';
 import { getLLM, maxTokensFor, temperatureFor } from './models';
 import { buildRetrievalTools } from './tools/retrieval-tools';
 import type { RetrievalService } from '../retrieval/service';
@@ -43,19 +44,49 @@ export function buildInvestigationAgent(cfg: Config, svc: RetrievalService, mode
   });
 }
 
+/**
+ * How many times to ask the model for a verdict before giving up. See runInvestigation — a
+ * tool-using structured-output turn occasionally ends with an empty final message, and that is
+ * transient, so the cheapest correct fix is to ask again.
+ */
+const VERDICT_ATTEMPTS = 3;
+
 /** Run the agent over a case narrative and return its typed verdict. */
 export async function runInvestigation(
   agent: Agent, cfg: Config, caseNarrative: string, modelOverride?: string,
 ): Promise<Verdict> {
   const model = modelOverride || cfg.llmModel;
-  const res = await agent.generate(
-    [{ role: 'user', content: `Review this transaction and produce your verdict:\n\n${caseNarrative}` }],
-    {
-      structuredOutput: { schema: VerdictSchema },
-      maxSteps: 8,
-      maxTokens: maxTokensFor(model),
-      temperature: temperatureFor(model),
-    } as any,
-  );
-  return (res as any).object as Verdict;
+  const prompt = `Review this transaction and produce your verdict:\n\n${caseNarrative}`;
+
+  // WHY THE RETRY LOOP: `structuredOutput` is not guaranteed to produce an object. Observed on
+  // Bedrock (us.anthropic.claude-haiku-4-5), roughly 1 run in 5: the agent issues its tool calls,
+  // then ends the turn with `finishReason: 'stop'`, an EMPTY text body and no error — so
+  // `res.object` is undefined. Returning that unchecked handed a bare `undefined` to the caller,
+  // which blew up one frame later on `verdict.recommendation`. It is a transient generation miss,
+  // not a bad case or a misconfiguration (the same transaction succeeds on the next attempt), so
+  // retry and validate here rather than making every call site defensive.
+  let last = '';
+  for (let attempt = 1; attempt <= VERDICT_ATTEMPTS; attempt++) {
+    const res = await agent.generate(
+      [{ role: 'user', content: prompt }],
+      {
+        structuredOutput: { schema: VerdictSchema },
+        maxSteps: 8,
+        maxTokens: maxTokensFor(model),
+        temperature: temperatureFor(model),
+      } as any,
+    );
+
+    // Re-validate instead of trusting the cast: this is the boundary where model output becomes
+    // typed data, and a shape that only *looks* right (missing risk_factors, confidence out of
+    // range) would otherwise surface as a downstream crash or a bogus stored verdict.
+    const parsed = VerdictSchema.safeParse((res as any).object);
+    if (parsed.success) return parsed.data;
+
+    last = (res as any).object === undefined
+      ? `empty structured output (finishReason=${(res as any).finishReason})`
+      : parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+    logger.warn('verdict attempt produced no usable object', { attempt, attempts: VERDICT_ATTEMPTS, model, reason: last });
+  }
+  throw new Error(`agent produced no valid verdict after ${VERDICT_ATTEMPTS} attempts — ${last}`);
 }
