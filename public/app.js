@@ -203,9 +203,20 @@ function theaterStart(id) {
 }
 function theaterStage(stage, d) {
   theater.stages.add(stage);
+  // A step event is a COMPLETION — `retrieve` is emitted *after* hybrid search returned — so the
+  // stage actually in flight is the next one the pipeline has not reached yet. Painting the
+  // just-completed stage as "now" is what made retrieve look slow: the only event between the
+  // search and the model's verdict is `recall` (which also maps to `retrieve`), so the retrieve box
+  // stayed lit with its sweep animation for the entire 5–9 s Bedrock call, while Atlas had actually
+  // answered in ~200 ms (hybrid $rankFusion 20 ms + Voyage embed 160 ms, measured on the live box).
+  // Scan FORWARD from the current stage rather than taking the first incomplete one overall: the
+  // hard-compliance lane jumps triage → govern → decide, and a backward scan would light `retrieve`
+  // as pending on a case that never runs it.
+  const from = T_STEPS.indexOf(stage);
+  const inFlight = from < 0 ? null : T_STEPS.slice(from + 1).find(s => !theater.stages.has(s));
   document.querySelectorAll('#tcase .tstep').forEach(el => {
     el.classList.toggle('on', theater.stages.has(el.dataset.stage));
-    el.classList.toggle('now', el.dataset.stage === stage);
+    el.classList.toggle('now', el.dataset.stage === inFlight);
   });
   const now = $('#tnow');
   if (now) now.innerHTML = `${icon(STEP_ICON[d.step] || 'reason', 15)}<span>${esc(d.headline)}</span><span class="d">${esc(d.detail || '')}</span>`;
@@ -516,6 +527,52 @@ function connect() {
 // A recorded run of the REAL agent, replayed client-side: no LLM, no server writes, identical
 // for every viewer — and clearly labeled as a replay everywhere it appears.
 let replayTimer = null;
+
+/**
+ * Replay pacing, derived from the RECORDED `ts` deltas rather than a fixed dwell.
+ *
+ * The old code waited a flat 480 ms between every event (1600 ms after a verdict), which made the
+ * replay a uniform metronome that misrepresented the pipeline in both directions: the model's
+ * reasoning really takes 8–21 s and was shown in 480 ms, while retrieval really takes ~0.3 s and was
+ * also shown in 480 ms — i.e. the replay claimed Atlas reads were ~5× slower and LLM calls ~20×
+ * faster than the run it recorded. Timing is part of what this demo is showing, so it is now real.
+ *
+ * Two bounds, and nothing else, are applied to the recorded gaps:
+ *   MIN — sub-frame gaps (the baked run has 280 ms case handoffs) would drop events into the same
+ *         paint, so a viewer would see steps appear to skip.
+ *   MAX — one recorded `govern` gap is 35.8 s, a cold-start outlier that would look like a hang and
+ *         alone would be a quarter of the whole replay. Clamping it keeps the shape truthful
+ *         without making the outlier the whole experience.
+ * TERMINAL_MIN is a readability floor, not pacing: the recorded gap after a verdict is only ~280 ms
+ * (the engine moves straight to the next case), which is not long enough to read the stamp.
+ *
+ * `?speed=N` divides every dwell — for a booth loop that needs to fit a shorter window. Default 1
+ * is true-to-recording (~90 s for the 6-case run).
+ */
+const REPLAY_PACE = { MIN_MS: 140, MAX_MS: 6000, TERMINAL_MIN_MS: 1600 };
+
+/** Milliseconds to hold on `ev[i]` before showing `ev[i+1]`, from their recorded timestamps. */
+function replayDwellMs(events, i, speed = 1) {
+  const cur = Date.parse(tsOf(events[i]?.ts));
+  const next = Date.parse(tsOf(events[i + 1]?.ts));
+  // Missing/garbled timestamps must not stall or fast-forward the replay — fall back to the floor.
+  const gap = Number.isFinite(cur) && Number.isFinite(next) ? next - cur : REPLAY_PACE.MIN_MS;
+  const scaled = Math.min(Math.max(gap, 0) / (speed > 0 ? speed : 1), REPLAY_PACE.MAX_MS);
+  const terminal = events[i]?.step === 'commit' || events[i]?.step === 'suspend';
+  return Math.max(scaled, terminal ? REPLAY_PACE.TERMINAL_MIN_MS / (speed > 0 ? speed : 1) : REPLAY_PACE.MIN_MS);
+}
+
+/** Mongo `ts` arrives as an ISO string over JSON, but tolerate an extended-JSON `$date` too. */
+function tsOf(ts) {
+  return typeof ts === 'object' && ts ? ts.$date ?? '' : ts ?? '';
+}
+
+/** Booth override: `?speed=2` runs the replay twice as fast. Ignores junk and non-positive values. */
+function replaySpeed() {
+  const v = Number(new URLSearchParams(location.search).get('speed'));
+  return Number.isFinite(v) && v > 0 ? Math.min(v, 20) : 1;
+}
+
 async function runReplay() {
   const { events = [], analyses = [] } = await fetch('/api/replay').then(r => r.json()).catch(() => ({}));
   if (!events.length) { setStatus('No baked replay found. Run `pnpm bake` first.'); endRun(); return; }
@@ -527,17 +584,19 @@ async function runReplay() {
   for (const a of analyses) { if (!sessionResolved[a.transaction_id]) queueOverlay[a.transaction_id] = 'pending'; }
   loadQueueRender();
   enterTheater();
+  const speed = replaySpeed();
   let i = 0;
   const tick = () => {
     if (!run.active) return;
     if (i >= events.length) { endRun(); return; }
-    const d = events[i++];
+    const at = i++;
+    const d = events[at];
     addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail);
     (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
     theaterEvent(d);
-    // dwell on the verdict so the stamp lands before the next case begins
-    const dwell = (d.step === 'commit' || d.step === 'suspend') ? 1600 : 480;
-    replayTimer = setTimeout(tick, dwell);
+    // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
+    // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
+    replayTimer = setTimeout(tick, replayDwellMs(events, at, speed));
   };
   tick();
 }
