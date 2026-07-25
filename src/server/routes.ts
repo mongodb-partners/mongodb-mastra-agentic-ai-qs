@@ -176,7 +176,8 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
   });
 
   // Runtime mode — the UI adapts labels and Launch behavior to this.
-  app.get('/api/mode', c => c.json({ demoMode: cfg.demoMode }));
+  app.get('/api/mode', c =>
+    c.json({ demoMode: cfg.demoMode, uiMode: cfg.uiMode, uiDensity: cfg.uiDensity }));
 
   // Replay data (demo mode): the pre-baked recorded run — ordered agent_events + per-case
   // analyses. The client animates these instead of calling the live agent. Read-only + shared.
