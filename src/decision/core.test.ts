@@ -63,4 +63,19 @@ describe('reconcile (deterministic override of the agent)', () => {
     expect(r.disposition).toBe('reject');
     expect(r.decided_by).toBe('agent');
   });
+  // Regression: a confident agent "escalate" with no policy trigger used to fall through to the
+  // approve/reject line and silently become an APPROVE — the reconciler is only ever allowed to
+  // tighten a verdict, never to loosen one.
+  it('honors a high-confidence escalate that no policy rule would have caught', () => {
+    const r = reconcile(facts({ amount: 3200 }), verdict({ recommendation: 'escalate', confidence: 86 }));
+    expect(r.disposition).toBe('escalate');
+    expect(r.must_escalate).toBe(true);
+    expect(r.risk_factors).toContain('agent_requested_escalation');
+  });
+  it('never downgrades an escalate recommendation to approve at any confidence', () => {
+    for (const confidence of [86, 90, 99, 100]) {
+      const r = reconcile(facts({ amount: 3200 }), verdict({ recommendation: 'escalate', confidence }));
+      expect(r.disposition).toBe('escalate');
+    }
+  });
 });

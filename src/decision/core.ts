@@ -59,7 +59,12 @@ export function triage(facts: TxnFacts): DecisionResult | null {
 /**
  * Reconcile the agent's proposed verdict with deterministic policy. Even a confident agent
  * "approve" is forced to escalate when ANY of these hold: structuring band, high value,
- * a suspicious fund-tracing ring, or confidence at/below the low-confidence ceiling.
+ * a suspicious fund-tracing ring, confidence at/below the low-confidence ceiling, or the agent
+ * itself asking for a human.
+ *
+ * The invariant is one-directional: this function may only ever TIGHTEN the agent's verdict, never
+ * loosen it. An agent "escalate" is therefore always honored — it is not a case the policy rules
+ * are expected to re-derive on their own.
  */
 export function reconcile(facts: TxnFacts, verdict: AgentVerdict): DecisionResult {
   const reasons: string[] = [];
@@ -67,6 +72,9 @@ export function reconcile(facts: TxnFacts, verdict: AgentVerdict): DecisionResul
   if (facts.amount >= HIGH_VALUE_THRESHOLD && verdict.recommendation === 'approve') reasons.push('high_value_approval');
   if (facts.ring_suspicious) reasons.push('fraud_ring_suspicious');
   if (verdict.confidence <= LOW_CONFIDENCE_CEILING) reasons.push('low_confidence');
+  // A confident escalate matches no rule above, and the fall-through below only speaks
+  // approve/reject — without this the agent's request for review became an auto-approve.
+  if (verdict.recommendation === 'escalate') reasons.push('agent_requested_escalation');
 
   const mustEscalate = reasons.length > 0;
   if (mustEscalate) {
@@ -79,7 +87,8 @@ export function reconcile(facts: TxnFacts, verdict: AgentVerdict): DecisionResul
       must_escalate: true,
     };
   }
-  // Clear-cut: honor the agent's approve/reject (never a bare "escalate" here — that's handled above).
+  // Clear-cut: honor the agent's approve/reject. An "escalate" cannot reach here — it always adds
+  // the agent_requested_escalation reason above.
   return {
     disposition: verdict.recommendation === 'reject' ? 'reject' : 'approve',
     decided_by: 'agent',
