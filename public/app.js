@@ -776,6 +776,7 @@ function tourSteps() {
   ];
 }
 let tourIx = 0; let TOUR = [];
+let tourGen = 0;   // invalidates in-flight flip probes when the step changes
 function isPhoneTier() {
   return window.matchMedia(PHONE_MQ).matches
     && document.documentElement.getAttribute('data-ui') !== 'classic';
@@ -790,11 +791,16 @@ function positionTour() {
     card.style.display = 'block';
     card.classList.remove('attop');
     if (el) {
+      const gen = ++tourGen;
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       // The last elements in the document (#stats, #auditChip) cannot be scrolled above a
       // bottom sheet — the page is already at scrollMax — so move the sheet to the top instead.
       // Measured after the smooth scroll settles; there is no scrollend event in Safari 18.
+      // The generation check discards a probe whose step has already been left: two taps closer
+      // together than this timeout would otherwise flip the new step's card off the old one's
+      // geometry.
       setTimeout(() => {
+        if (gen !== tourGen) return;
         const rr = el.getBoundingClientRect();
         const ct = card.getBoundingClientRect().top;
         const vis = Math.max(0, Math.min(rr.bottom, ct) - Math.max(rr.top, 0));
@@ -830,7 +836,7 @@ function startTour() {
   }
   $('#tourMask').classList.add('on'); positionTour();
 }
-function endTour() { $('#tourMask').classList.remove('on'); $('#tourCard').classList.remove('attop'); $('#tourCard').style.display = 'none'; localStorage.setItem('marshal-tour-seen', '1'); }
+function endTour() { tourGen++; $('#tourMask').classList.remove('on'); $('#tourCard').classList.remove('attop'); $('#tourCard').style.display = 'none'; localStorage.setItem('marshal-tour-seen', '1'); }
 
 // ---- rail tip sheet ---------------------------------------------------------
 // .cap::after is a :hover tooltip with cursor:help — it never fires on a touch device, so the
