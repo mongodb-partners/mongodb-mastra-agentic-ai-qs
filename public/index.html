@@ -58,6 +58,8 @@
   #brand .dot { width:9px;height:9px;border-radius:50%;background:var(--mongo); box-shadow:0 0 10px var(--mongo); }
   .tag { font-family:var(--mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--dim); border:1px solid var(--border); padding:4px 10px; border-radius:999px; }
   #status { font-family:var(--mono); font-size:12px; color:var(--mongo); }
+  #themeBtn { display:inline-flex; align-items:center; gap:6px; }
+  #themeBtn .ticon { font-size:13px; line-height:1; }
   .btn { font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--border);
          background:var(--shadow2); color:var(--ink); padding:8px 14px; border-radius:9px; cursor:pointer; transition:.15s; }
   .btn:hover { border-color:var(--muted); }
@@ -279,7 +281,8 @@
     :root:not([data-ui="classic"]) #lockup { gap:7px; }
     :root:not([data-ui="classic"]) #launchBtn { flex:1 0 100%; justify-content:center; }
     :root:not([data-ui="classic"]) #top .btn { min-height:44px; padding:10px 14px; }
-    :root:not([data-ui="classic"]) #themeBtn { min-width:44px; }
+    :root:not([data-ui="classic"]) #themeBtn { min-width:44px; justify-content:center; }
+    :root:not([data-ui="classic"]) #themeBtn .tlbl { display:none; }
     /* icon-only utility buttons so the bar stays two rows even at 375px. title= keeps the label. */
     :root:not([data-ui="classic"]) #tourBtn, :root:not([data-ui="classic"]) #resetBtn { font-size:0; min-width:44px; }
     :root:not([data-ui="classic"]) #tourBtn::before { content:"?"; font-size:16px; }
@@ -330,7 +333,7 @@
     <span id="status"></span>
     <div style="flex:1"></div>
     <button class="btn" id="tourBtn" title="Guided tour">? Tour</button>
-    <button class="btn" id="themeBtn" title="Toggle light / dark">◐</button>
+    <button class="btn" id="themeBtn" title="Toggle light / dark (L)" aria-keyshortcuts="l"><span class="ticon">☀</span><span class="tlbl">Light</span></button>
     <button class="btn" id="resetBtn">Reset</button>
     <button class="btn launch" id="launchBtn"></button>
   </div>

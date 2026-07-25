@@ -687,14 +687,37 @@ function initDisclosures() {
 // ---- theme ------------------------------------------------------------------
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  const b = $('#themeBtn'); if (b) b.textContent = t === 'light' ? '☾' : '◐';
+  const b = $('#themeBtn');
+  if (!b) return;
+  // The control names its DESTINATION, not its current state: in dark mode it reads "☀ Light".
+  // A presenter scanning the top bar for the words "light mode" then finds them.
+  const toLight = t !== 'light';
+  b.querySelector('.ticon').textContent = toLight ? '☀' : '☾';
+  b.querySelector('.tlbl').textContent = toLight ? 'Light' : 'Dark';
+  b.setAttribute('title', `Switch to ${toLight ? 'light' : 'dark'} mode (L)`);
+  b.setAttribute('aria-label', `Switch to ${toLight ? 'light' : 'dark'} mode`);
+}
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  localStorage.setItem('marshal-theme', next);
+  applyTheme(next);
 }
 function initTheme() {
-  const saved = localStorage.getItem('marshal-theme') || 'dark';
+  // Default follows the OS; an explicit choice persists and wins. A phone scanning the QR code
+  // in Las Vegas daylight, with a light-mode OS, then opens in the readable theme.
+  const saved = localStorage.getItem('marshal-theme')
+    || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   applyTheme(saved);
-  $('#themeBtn').addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    localStorage.setItem('marshal-theme', next); applyTheme(next);
+  $('#themeBtn').addEventListener('click', toggleTheme);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'l' && e.key !== 'L') return;
+    // Cmd/Ctrl+L is the address bar and Alt+L is a menu mnemonic — never shadow them.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // A bare letter must not fire while the visitor is typing in the feedback widget.
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    toggleTheme();
   });
 }
 
