@@ -30,7 +30,9 @@
          grid-template-areas:"top top top" "rail rail rail" "left center right" "bottom bottom bottom";
          height:100vh; max-width:2200px; margin:0 auto; gap:12px; padding:12px; }
   .panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; backdrop-filter:blur(10px); overflow:hidden; }
-  .panel h2 { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:0; padding:13px 16px 9px; display:flex; justify-content:space-between; align-items:center; }
+  .panel > summary { list-style:none; cursor:default; }
+  .panel > summary::-webkit-details-marker { display:none; }
+  .panel h2, .panel > summary { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:0; padding:13px 16px 9px; display:flex; justify-content:space-between; align-items:center; }
   .scroll { overflow-y:auto; height:calc(100% - 36px); padding:0 12px 14px; }
   .scroll::-webkit-scrollbar { width:8px; } .scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
 
@@ -261,7 +263,7 @@
 
   <div id="rail" class="panel"></div>
 
-  <div id="left" class="panel"><h2><span>Case Queue</span><span id="qcount" class="dim"></span></h2><div class="scroll" id="queue"><div class="empty">loading…</div></div></div>
+  <details id="left" class="panel" open><summary><span>Case Queue</span><span id="qcount" class="dim"></span></summary><div class="scroll" id="queue"><div class="empty">loading…</div></div></details>
 
   <div id="center" class="panel"><div class="scroll">
     <div id="welcome">
@@ -279,7 +281,7 @@
     <div id="detail"></div>
   </div></div>
 
-  <div id="right" class="panel"><h2><span>Agent Operations Feed</span><span id="feedMode"></span></h2><div class="scroll" id="feed"></div></div>
+  <details id="right" class="panel" open><summary><span>Agent Operations Feed</span><span id="feedMode"></span></summary><div class="scroll" id="feed"></div></details>
 
   <div id="bottom" class="panel">
     <div id="live"><span class="dot"></span><span>MongoDB Atlas</span></div>
