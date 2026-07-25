@@ -697,8 +697,7 @@ function wire() {
 const PHONE_MQ = '(max-width:759px)';
 const userToggled = new Set();
 function syncDisclosures() {
-  const phone = window.matchMedia(PHONE_MQ).matches
-    && document.documentElement.getAttribute('data-ui') !== 'classic';
+  const phone = isPhoneTier();
   for (const sel of ['#left', '#right']) {
     const el = $(sel);
     if (!el || userToggled.has(sel)) continue;
@@ -777,32 +776,83 @@ function tourSteps() {
   ];
 }
 let tourIx = 0; let TOUR = [];
+function isPhoneTier() {
+  return window.matchMedia(PHONE_MQ).matches
+    && document.documentElement.getAttribute('data-ui') !== 'classic';
+}
 function positionTour() {
   const s = TOUR[tourIx]; const el = document.querySelector(s.sel);
-  if (!el) return;
-  const r = el.getBoundingClientRect(); const pad = 8;
-  const hole = $('#tourHole');
-  hole.style.left = (r.left - pad) + 'px'; hole.style.top = (r.top - pad) + 'px';
-  hole.style.width = (r.width + pad * 2) + 'px'; hole.style.height = (r.height + pad * 2) + 'px';
-  const card = $('#tourCard'); card.style.display = 'block';
-  const cw = 320, ch = card.offsetHeight || 200;
-  let top = r.bottom + 14; if (top + ch > window.innerHeight - 12) top = Math.max(12, r.top - ch - 14);
-  let left = Math.min(Math.max(12, r.left), window.innerWidth - cw - 12);
-  card.style.top = top + 'px'; card.style.left = left + 'px';
+  const card = $('#tourCard');
+  // Phone tier: the card is a CSS-positioned bottom sheet, so skip the spotlight geometry
+  // entirely. Scroll the step's subject into view instead — the panels are stacked, so the
+  // subject is usually off-screen, and a sheet describing an invisible element is useless.
+  if (isPhoneTier()) {
+    card.style.display = 'block';
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } else if (el) {
+    const r = el.getBoundingClientRect(); const pad = 8;
+    const hole = $('#tourHole');
+    hole.style.left = (r.left - pad) + 'px'; hole.style.top = (r.top - pad) + 'px';
+    hole.style.width = (r.width + pad * 2) + 'px'; hole.style.height = (r.height + pad * 2) + 'px';
+    card.style.display = 'block';
+    const cw = 320, ch = card.offsetHeight || 200;
+    let top = r.bottom + 14; if (top + ch > window.innerHeight - 12) top = Math.max(12, r.top - ch - 14);
+    let left = Math.min(Math.max(12, r.left), window.innerWidth - cw - 12);
+    card.style.top = top + 'px'; card.style.left = left + 'px';
+  } else {
+    return;
+  }
   $('#tourStep').textContent = `Step ${tourIx + 1} of ${TOUR.length}`;
   $('#tourTitle').textContent = s.title; $('#tourBody').textContent = s.body;
   $('#tourDots').innerHTML = TOUR.map((_, i) => `<i class="${i === tourIx ? 'on' : ''}"></i>`).join('');
   $('#tourPrev').style.visibility = tourIx === 0 ? 'hidden' : 'visible';
   $('#tourNext').textContent = tourIx === TOUR.length - 1 ? 'Done ✓' : 'Next ›';
 }
-function startTour() { TOUR = tourSteps(); tourIx = 0; $('#tourMask').classList.add('on'); positionTour(); }
+function startTour() {
+  TOUR = tourSteps(); tourIx = 0;
+  // #queue and #feed are inside the <details> panels, which are collapsed on the phone tier.
+  // A tour step pointing at a closed panel has nothing to scroll to, so open them for the tour
+  // and mark them user-toggled so syncDisclosures() stops managing them.
+  if (isPhoneTier()) for (const sel of ['#left', '#right']) {
+    const el = $(sel); if (el && !el.open) { el.open = true; userToggled.add(sel); }
+  }
+  $('#tourMask').classList.add('on'); positionTour();
+}
 function endTour() { $('#tourMask').classList.remove('on'); $('#tourCard').style.display = 'none'; localStorage.setItem('marshal-tour-seen', '1'); }
+
+// ---- rail tip sheet ---------------------------------------------------------
+// .cap::after is a :hover tooltip with cursor:help — it never fires on a touch device, so the
+// eight capability explanations are unreachable for every QR-code visitor. A tap opens the same
+// copy in a sheet. Delegated, because renderRail() replaces the rail's innerHTML.
+function initRailTips() {
+  $('#rail').addEventListener('click', e => {
+    const cap = e.target.closest('.cap');
+    if (!cap || !isPhoneTier()) return;
+    const c = CAPS.find(x => x.key === cap.dataset.cap);
+    if (!c) return;
+    $('#tipIcon').innerHTML = icon(c.key, 18);
+    $('#tipTitle').textContent = c.name;
+    $('#tipBody').textContent = c.tip;
+    $('#tipSheet').classList.add('on');
+  });
+  const close = () => $('#tipSheet').classList.remove('on');
+  $('#tipClose').addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+}
+
 function initTour() {
   $('#tourBtn').addEventListener('click', startTour);
   $('#tourSkip').addEventListener('click', endTour);
   $('#tourPrev').addEventListener('click', () => { if (tourIx > 0) { tourIx--; positionTour(); } });
   $('#tourNext').addEventListener('click', () => { if (tourIx === TOUR.length - 1) endTour(); else { tourIx++; positionTour(); } });
   window.addEventListener('resize', () => { if ($('#tourMask').classList.contains('on')) positionTour(); });
+  // Crossing the phone boundary swaps the card between bottom sheet and spotlight; clear the
+  // inline top/left the spotlight branch wrote, or they fight the sheet's CSS.
+  window.matchMedia(PHONE_MQ).addEventListener('change', () => {
+    const card = $('#tourCard');
+    card.style.top = ''; card.style.left = '';
+    if ($('#tourMask').classList.contains('on')) positionTour();
+  });
   const suppressed = new URLSearchParams(location.search).get('tour') === '0';
   if (!suppressed && !localStorage.getItem('marshal-tour-seen')) setTimeout(startTour, 700);
 }
@@ -819,6 +869,7 @@ async function loadMode() {
 async function boot() {
   applyDensity(); renderLockup(); initTheme(); renderRail(); wire(); showCenter('welcome'); initDisclosures();
   await loadMode(); // mode shapes the welcome copy, launch label and tour before anything renders
+  initRailTips();
   initTour();
   loadQueue().then(overlayHeldFromReviews);
   loadCaps(); backfillFeed(); refreshAudit(); connect(); loadStats();

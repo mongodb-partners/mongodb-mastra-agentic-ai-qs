@@ -255,6 +255,16 @@
   #tourCard .dots i.on { background:var(--mongo); }
   #tourCard .skip { position:absolute; top:12px; right:14px; color:var(--dim); font-size:11px; cursor:pointer; background:none; border:none; }
 
+  /* Tap-to-reveal rail tip. .cap::after is a :hover tooltip, which never fires on touch, so the
+     same copy also gets a dismissable sheet. */
+  #tipSheet { position:fixed; z-index:902; left:10px; right:10px; bottom:10px; display:none;
+              background:var(--panel2); border:1px solid var(--mongo); border-radius:16px;
+              padding:16px 18px 14px; box-shadow:0 -10px 40px var(--shadow-drop); }
+  #tipSheet.on { display:block; }
+  #tipSheet h3 { margin:0 0 8px; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:8px; }
+  #tipSheet p { margin:0 0 12px; font-size:13px; line-height:1.55; color:var(--muted); }
+  #tipSheet .close { display:block; width:100%; min-height:44px; }
+
   /* ── responsive tiers ──────────────────────────────────────────────── */
   @media (max-width:1599px) and (min-width:1180px) {
     :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
@@ -313,6 +323,16 @@
       cursor:pointer; min-height:44px; padding:14px 16px; }
     :root:not([data-ui="classic"]) #left .scroll, :root:not([data-ui="classic"]) #right .scroll {
       height:auto; max-height:52vh; }
+    /* The spotlight does absolute pixel maths against getBoundingClientRect(); once the panels
+       stack (and two collapse to a near-zero-height <details>), it lands off-screen or on
+       nothing. On this tier the tour is a fixed bottom sheet instead — no geometry involved. */
+    :root:not([data-ui="classic"]) #tourMask { display:none !important; }
+    :root:not([data-ui="classic"]) #tourCard { position:fixed; left:10px !important; right:10px;
+      top:auto !important; bottom:10px; width:auto; border-radius:16px; padding:16px 18px 14px;
+      box-shadow:0 -10px 40px var(--shadow-drop); }
+    :root:not([data-ui="classic"]) #tourCard p { max-height:34vh; }
+    :root:not([data-ui="classic"]) #tourCard .nav .btn { min-height:44px; padding:10px 16px; }
+    :root:not([data-ui="classic"]) #tourCard .skip { min-height:32px; padding:0 4px; }
   }
   @media (max-width:479px) {
     :root:not([data-ui="classic"]) .edge-amt { display:none; }
@@ -370,6 +390,11 @@
 </div>
 <div id="banner" role="status"></div>
 <div id="tourMask"><div id="tourHole"></div></div>
+<div id="tipSheet">
+  <h3><span id="tipIcon"></span><span id="tipTitle"></span></h3>
+  <p id="tipBody"></p>
+  <button class="btn launch close" id="tipClose">Got it</button>
+</div>
 <div id="tourCard" style="display:none">
   <button class="skip" id="tourSkip">Skip ✕</button>
   <div class="step" id="tourStep"></div>
