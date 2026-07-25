@@ -64,8 +64,10 @@ function resolveDensity() {
   const q = new URLSearchParams(location.search).get('density');
   if (DENSITIES.includes(q)) return q;
   if (DENSITIES.includes(SERVER_DENSITY)) return SERVER_DENSITY;
-  if (window.matchMedia('(max-width:759px)').matches) return 'minimal';
-  if (window.matchMedia('(max-width:1179px)').matches) return 'lean';
+  // PHONE_MQ / TABLET_MQ are declared further down the file; safe because nothing calls
+  // resolveDensity() during module evaluation — the first applyDensity() is inside boot().
+  if (window.matchMedia(PHONE_MQ).matches) return 'minimal';
+  if (window.matchMedia(TABLET_MQ).matches) return 'lean';
   return 'full';
 }
 let DENSITY = 'full';
@@ -718,7 +720,21 @@ function wire() {
  * phone is rotated, and so an explicit user toggle is never fought: once someone taps a summary we
  * stop managing that panel.
  */
+// The two tier boundaries, as media-query strings, declared ONCE for all of this file. Every
+// matchMedia() call in app.js must use these — a fourth and fifth copy of "759" is how the
+// disclosure sync and the density resolver drift apart by a pixel and only one of them switches.
+//
+// DUPLICATED ACROSS FILES ON PURPOSE, and there are exactly two other homes for these numbers:
+//   1. the @media blocks in public/index.html's "responsive tiers" section (same repo), and
+//   2. nothing else — the overlay repo's widgets deliberately do not know them (see the yield note
+//      in that repo's public/feedback.js, which keys off geometry rather than a third copy).
+// The duplication is not laziness: this project ships with NO build step, so there is no mechanism
+// that could feed one definition to both CSS and JS, and the alternative — writing the tier rules
+// from JS — would move the layout off the pre-paint path and reintroduce the flash of the wrong
+// layout that index.html's head script exists to prevent. If you change a boundary, change it in
+// BOTH places; index.html carries the reciprocal pointer back to here.
 const PHONE_MQ = '(max-width:759px)';
+const TABLET_MQ = '(max-width:1179px)';
 const userToggled = new Set();
 function syncDisclosures() {
   const phone = isPhoneTier();
@@ -736,7 +752,9 @@ function initDisclosures() {
   syncDisclosures();
   window.matchMedia(PHONE_MQ).addEventListener('change', syncDisclosures);
   // Rotating a phone can cross a density boundary; re-resolve and re-render the welcome copy.
-  for (const mq of ['(max-width:759px)', '(max-width:1179px)']) {
+  // Both boundaries, because resolveDensity() reads both: an iPad rotating across 1179 changes
+  // lean/full without ever touching the phone breakpoint.
+  for (const mq of [PHONE_MQ, TABLET_MQ]) {
     window.matchMedia(mq).addEventListener('change', () => {
       const before = DENSITY;
       applyDensity();
@@ -766,7 +784,21 @@ function toggleTheme() {
 function initTheme() {
   // Default follows the OS; an explicit choice persists and wins. A phone scanning the QR code
   // in Las Vegas daylight, with a light-mode OS, then opens in the readable theme.
-  const saved = localStorage.getItem('marshal-theme')
+  //
+  // Guarded because localStorage THROWS, it does not return null, when storage is unavailable —
+  // Safari private browsing, blocked third-party storage, kiosk policies. Unguarded, that exception
+  // escapes initTheme() and kills the rest of boot(): no tour, no disclosure sync, no wiring. A
+  // visitor on a locked-down browser would get a dead console rather than a console in the wrong
+  // theme. The OS scheme is a complete fallback, so there is nothing to recover beyond it. The head
+  // script in index.html wraps the same read for the same reason — see the note above it about why
+  // the statement order there matters.
+  let stored = null;
+  try {
+    stored = localStorage.getItem('marshal-theme');
+  } catch (e) {
+    stored = null;
+  }
+  const saved = stored
     || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   applyTheme(saved);
   $('#themeBtn').addEventListener('click', toggleTheme);

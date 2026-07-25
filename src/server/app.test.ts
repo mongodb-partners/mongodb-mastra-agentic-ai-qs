@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Hono } from 'hono';
 import { createApp } from './app';
 import { mountRoutes } from './routes';
+import { loadConfig } from '../config';
 
 const cfg = { appName: 'Marshal', port: 8000 } as any;
 
@@ -41,5 +42,20 @@ describe('/api/mode', () => {
   it('keeps demoMode intact when no ui override is set', async () => {
     const res = await mount({ demoMode: true, uiMode: '', uiDensity: '' }).request('/api/mode');
     expect(await res.json()).toEqual({ demoMode: true, uiMode: '', uiDensity: '' });
+  });
+
+  // loadConfig maps MARSHAL_UI=auto and MARSHAL_DENSITY=auto to '' (see src/config.ts), so 'auto'
+  // must never reach the wire — the client's "no override" branch keys on falsiness, and a literal
+  // 'auto' would read as an override named after a mode that does not exist. The Playwright
+  // harnesses stub this payload, so this is the assertion that keeps their stubs honest.
+  it("never serves 'auto' — loadConfig has already normalised it to ''", async () => {
+    const cfg = loadConfig({
+      MONGODB_URI: 'mongodb+srv://x',
+      VOYAGE_API_KEY: 'vk',
+      MARSHAL_UI: 'auto',
+      MARSHAL_DENSITY: 'auto',
+    });
+    const res = await mount({ uiMode: cfg.uiMode, uiDensity: cfg.uiDensity }).request('/api/mode');
+    expect(await res.json()).toEqual({ demoMode: false, uiMode: '', uiDensity: '' });
   });
 });

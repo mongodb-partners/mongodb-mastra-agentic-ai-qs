@@ -68,6 +68,17 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, MARSHAL_DENSITY: 'tiny' })).toThrow(/MARSHAL_DENSITY/);
   });
 
+  // The two ui variables must accept and normalise the same "let the viewport decide" spelling;
+  // accepting 'auto' on one and hard-failing startup on the other is a trap for an operator writing
+  // both lines of the same .env.
+  it("normalises MARSHAL_DENSITY=auto to '', symmetric with MARSHAL_UI", () => {
+    expect(loadConfig({ ...base, MARSHAL_DENSITY: 'auto' }).uiDensity).toBe('');
+    expect(loadConfig({ ...base, MARSHAL_UI: 'auto', MARSHAL_DENSITY: 'auto' })).toMatchObject({
+      uiMode: '',
+      uiDensity: '',
+    });
+  });
+
   it('honors explicit secrets and keeps them distinct', () => {
     const c = loadConfig({ ...base, AUDIT_SECRET: 'aud', SESSION_SECRET: 'ses' });
     expect(c.auditSecret).toBe('aud');

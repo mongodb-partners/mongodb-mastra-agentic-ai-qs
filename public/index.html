@@ -13,6 +13,16 @@
 // both once it runs — applyUiMode() and initTheme() in public/app.js — this only moves the first
 // paint to the right answer. Neither of those can replace this script; see the comment above
 // applyUiMode() before touching either half.
+//
+// THE STATEMENT ORDER BELOW IS LOAD-BEARING, not stylistic. The data-ui setAttribute must precede
+// the localStorage read, because localStorage is the throwing call here: it is unavailable in
+// Safari private browsing, when third-party storage is blocked, and behind some kiosk policies. In
+// that case the catch swallows the rest of the block, and everything BEFORE the throw has already
+// been applied. Ordered as it is, a storage-blocked visitor still gets ?ui=classic honoured at first
+// paint and merely loses the theme preference (falling back to the OS scheme once app.js runs);
+// reversed, the presenter's kill switch would silently stop working on exactly the locked-down
+// browser someone hands you at a conference. Keep the riskiest statement last. Same reason
+// initTheme() in app.js wraps its own reads: see its try/catch.
 try { var q = new URLSearchParams(location.search).get('ui');
   if (q === 'classic') document.documentElement.setAttribute('data-ui', 'classic');
   // Same order as initTheme(): an explicit stored choice wins, else follow the OS.
@@ -261,6 +271,14 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #tourMask.on { display:block; }
   #tourHole { position:absolute; border-radius:14px; box-shadow:0 0 0 9999px var(--tour-scrim), 0 0 0 2px var(--mongo), 0 0 26px var(--tint-mongo-glow);
               transition:all .35s cubic-bezier(.4,0,.2,1); pointer-events:none; }
+  /* z-index 901/902 (#tipSheet) are the top of THIS repo's stack, but not of the composited page:
+     the public deployment injects an overlay feedback pill at z-index:9999, which on the phone tier
+     lands inside the bottom sheet these two become and used to swallow the tap on #tourNext and on
+     #tipSheet .close. That is fixed at the pill's end — public/feedback.js in the deployment repo
+     yields (visibility:hidden) whenever it geometrically overlaps #tourCard or #tipSheet — rather
+     than by raising these, because a number here cannot outrank an injected script that is free to
+     pick a bigger one, and because a tour card over the whole viewport is the wrong trade for a
+     persistent widget. Keep both ids stable: feedback.js selects them by name. */
   #tourCard { position:absolute; z-index:901; width:320px; background:var(--panel2); border:1px solid var(--mongo); border-radius:14px;
               padding:16px 18px; box-shadow:0 18px 50px var(--shadow-drop); pointer-events:auto; transition:all .35s cubic-bezier(.4,0,.2,1); }
   #tourCard .step { font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--mongo); }
@@ -281,7 +299,17 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #tipSheet p { margin:0 0 12px; font-size:13px; line-height:1.55; color:var(--muted); }
   #tipSheet .close { display:block; width:100%; min-height:44px; }
 
-  /* ── responsive tiers ──────────────────────────────────────────────── */
+  /* ── responsive tiers ──────────────────────────────────────────────────────────────────────
+     THE BOUNDARIES 759 AND 1179 ARE DUPLICATED IN public/app.js ON PURPOSE — see PHONE_MQ and
+     TABLET_MQ there, which drive the disclosure sync and the density resolver and carry the full
+     rationale. There is no build step in this project, so nothing can generate both a media query
+     and a matchMedia string from one definition, and computing these rules from JS would move the
+     layout off the pre-paint path (the exact flash the head script above exists to prevent). Two
+     homes, kept in sync by hand: CHANGE A NUMBER HERE AND CHANGE IT IN app.js TOO.
+
+     Every rule below is scoped :root:not([data-ui="classic"]) so ?ui=classic and the >=1600px
+     layout stay byte-identical to the ui-baseline-2026-07-25 tag; the overlay repo's
+     scripts/ui-matrix.mjs asserts that against a checkout of the tag itself. */
   @media (max-width:1599px) and (min-width:1180px) {
     :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
   }
@@ -359,6 +387,20 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #tourCard p { max-height:34vh; }
     :root:not([data-ui="classic"]) #tourCard .nav .btn { min-height:44px; padding:10px 16px; }
     :root:not([data-ui="classic"]) #tourCard .skip { min-height:32px; padding:0 4px; }
+    /* #banner is position:fixed at top:76px, which clears the >=1600px baseline's single-row #top.
+       On this tier #top wraps (measured 113px tall, bottom edge 123px, at 375-440px wide; 164px
+       tall, bottom edge 174px, at 320px) so the fixed banner landed on top of #launchBtn — which
+       #top makes a full-width row here — covering 48% of it at 390/440px and 58% at 320px, and
+       taking the tap: elementFromPoint at the button's centre returned #banner. The banner is
+       z-index:800 and #top is in normal flow, so the banner always wins. Offset it clear of the
+       tallest wrapped #top (174px) plus this tier's 10px gap rhythm. top is the only declaration
+       needed: left:50% already caps the shrink-to-fit width at 50vw here, well under max-width:70vw,
+       and the alarm string's tallest wrap (178px at 320px wide) still ends 206px above the fold of
+       the shortest phone viewport. Kept as an offset rather than position:sticky in flow because
+       sticky needs a flex/order change on <body> that relayouts #hud (measured: the launch button's
+       centre then hit page content, not the button).
+       scripts/ui-matrix.mjs asserts #launchBtn is hit-testable with #banner.alarm.show rendered. */
+    :root:not([data-ui="classic"]) #banner { top:184px; }
   }
   @media (max-width:479px) {
     :root:not([data-ui="classic"]) .edge-amt { display:none; }

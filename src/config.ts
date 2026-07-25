@@ -65,7 +65,11 @@ const EnvSchema = z.object({
   DEMO_MODE: z.string().optional(),
   SEED_SCALE_COUNT: z.coerce.number().int().min(0).default(1200),
   MARSHAL_UI: z.enum(['classic', 'auto', '']).default(''),
-  MARSHAL_DENSITY: z.enum(['full', 'lean', 'minimal', '']).default(''),
+  // 'auto' is accepted here for the same reason as in MARSHAL_UI, and normalised the same way in
+  // loadConfig: it is the word an operator reaches for to mean "let the viewport decide", and
+  // rejecting it on one variable while accepting it on the other fails a box at startup over a
+  // spelling. Both normalise to '' so the client sees a single "no override" shape.
+  MARSHAL_DENSITY: z.enum(['full', 'lean', 'minimal', 'auto', '']).default(''),
 });
 
 /**
@@ -111,8 +115,8 @@ export function loadConfig(
     demoMode,
     seedScaleCount: e.SEED_SCALE_COUNT,
     // 'auto' is the schema-valid way to say "no override", and normalises to '' so the client
-    // sees one shape for both.
+    // sees one shape for both. Symmetric on both variables — see MARSHAL_DENSITY in the schema.
     uiMode: e.MARSHAL_UI === 'auto' ? '' : e.MARSHAL_UI,
-    uiDensity: e.MARSHAL_DENSITY,
+    uiDensity: e.MARSHAL_DENSITY === 'auto' ? '' : e.MARSHAL_DENSITY,
   };
 }
