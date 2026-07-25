@@ -43,6 +43,31 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', DEMO_MODE: '1' })).not.toThrow();
   });
 
+  it('uiMode and uiDensity default to empty (viewport decides)', () => {
+    const c = loadConfig(base);
+    expect(c.uiMode).toBe('');
+    expect(c.uiDensity).toBe('');
+  });
+
+  it('MARSHAL_UI=classic pins the classic layout fleet-wide', () => {
+    expect(loadConfig({ ...base, MARSHAL_UI: 'classic' }).uiMode).toBe('classic');
+  });
+
+  it("normalises MARSHAL_UI=auto to '' so the client sees one shape", () => {
+    expect(loadConfig({ ...base, MARSHAL_UI: 'auto' }).uiMode).toBe('');
+  });
+
+  it('rejects an unknown MARSHAL_UI rather than silently ignoring it', () => {
+    expect(() => loadConfig({ ...base, MARSHAL_UI: 'clasic' })).toThrow(/MARSHAL_UI/);
+  });
+
+  it('accepts each MARSHAL_DENSITY tier and rejects anything else', () => {
+    for (const d of ['full', 'lean', 'minimal'] as const) {
+      expect(loadConfig({ ...base, MARSHAL_DENSITY: d }).uiDensity).toBe(d);
+    }
+    expect(() => loadConfig({ ...base, MARSHAL_DENSITY: 'tiny' })).toThrow(/MARSHAL_DENSITY/);
+  });
+
   it('honors explicit secrets and keeps them distinct', () => {
     const c = loadConfig({ ...base, AUDIT_SECRET: 'aud', SESSION_SECRET: 'ses' });
     expect(c.auditSecret).toBe('aud');

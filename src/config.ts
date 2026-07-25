@@ -29,6 +29,18 @@ export interface Config {
    * 0 disables synthetic seeding (curated seed cases only).
    */
   seedScaleCount: number;
+  /**
+   * UI layout mode. '' (default) = the responsive layout picks a tier from the viewport.
+   * 'classic' = pin the pre-2026-07-25 fixed three-column stage layout at every width, for every
+   * visitor. The mid-demo escape hatch is the ?ui=classic query param, which needs no restart;
+   * this env var is the fleet-wide default.
+   */
+  uiMode: string;
+  /**
+   * Default on-screen copy density: '' (auto from viewport) | 'full' | 'lean' | 'minimal'.
+   * ?density= overrides it per visitor.
+   */
+  uiDensity: string;
 }
 
 const EnvSchema = z.object({
@@ -52,6 +64,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().optional(),
   DEMO_MODE: z.string().optional(),
   SEED_SCALE_COUNT: z.coerce.number().int().min(0).default(1200),
+  MARSHAL_UI: z.enum(['classic', 'auto', '']).default(''),
+  MARSHAL_DENSITY: z.enum(['full', 'lean', 'minimal', '']).default(''),
 });
 
 /**
@@ -96,5 +110,9 @@ export function loadConfig(
     sessionSecret,
     demoMode,
     seedScaleCount: e.SEED_SCALE_COUNT,
+    // 'auto' is the schema-valid way to say "no override", and normalises to '' so the client
+    // sees one shape for both.
+    uiMode: e.MARSHAL_UI === 'auto' ? '' : e.MARSHAL_UI,
+    uiDensity: e.MARSHAL_DENSITY,
   };
 }
