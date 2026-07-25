@@ -7,6 +7,10 @@ tfplan
 # Filled variable files (secrets); the .example is the only tfvars that ships.
 *.tfvars
 !*.tfvars.example
+# Terraform *_override.tf files patch shared config for ONE local deployment (e.g. suppressing a
+# replacement that is correct for a fresh deploy but wrong for a specific running box). Per-box, so
+# never shipped — the file itself must explain why it exists and when to delete it.
+*_override.tf
 # SSH keys, deploy logs.
 *.pem
 deploy.log

@@ -5,6 +5,14 @@ provider "aws" {
   default_tags {
     tags = local.common_tags
   }
+
+  # MongoDB's corporate auto-tagger stamps `mongodb:infosec:*` tags (WhatIsThis, creatorIAMUser,
+  # lastModifiedTime) onto resources after creation. Terraform doesn't know them, so every plan wants
+  # to REMOVE them and the tagger puts them straight back — permanent phantom drift that hides real
+  # diffs. Ignore the whole prefix rather than trying to model tags we don't own.
+  ignore_tags {
+    key_prefixes = ["mongodb:infosec:"]
+  }
 }
 
 # MongoDB Atlas Programmatic API Key (org- or project-scoped). Passed as sensitive vars

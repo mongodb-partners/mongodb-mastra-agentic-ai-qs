@@ -44,12 +44,20 @@ resource "aws_instance" "app" {
   key_name                    = local.key_name
   iam_instance_profile        = aws_iam_instance_profile.app.name
 
-  # IMDSv2 required. Hop limit 1 is enough: only the HOST (userdata) reads IMDS — for the
-  # SSM param fetch. The app container needs no AWS creds (the LLM is reached over a gateway).
+  # IMDSv2 required (http_tokens = "required") — that is the setting that matters for SSRF.
+  #
+  # The hop limit must be 2 whenever the CONTAINER needs AWS credentials, i.e. llm_provider =
+  # "bedrock": the app runs on a docker bridge network, so its IMDS request traverses one extra
+  # network hop and a limit of 1 makes the role unreachable from inside the container — the AWS SDK
+  # then finds no credentials and every model call fails. Verified from inside the app container on a
+  # live bedrock box: IMDSv2 returns the instance role at limit 2, and nothing at limit 1.
+  #
+  # A demo box (DEMO_MODE=1, no Bedrock) only needs IMDS on the HOST for the userdata SSM fetch, so
+  # it keeps the tighter limit of 1 and the container cannot reach the role at all.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_put_response_hop_limit = var.llm_provider == "bedrock" ? 2 : 1
   }
 
   root_block_device {

@@ -48,6 +48,11 @@ seed_scale_count = "1200"              # synthetic decided-precedent corpus (the
 llm_provider = "anthropic"
 llm_model    = "claude-haiku-4-5"
 # llm_base_url = "https://<your-gateway>/anthropic/v1/messages"   # set + TF_VAR_grove_api_key for live mode
+#
+# For Bedrock instead of the gateway, set llm_provider = "bedrock" and llm_model to a Bedrock
+# model id (e.g. "us.anthropic.claude-haiku-4-5-20251001-v1:0"). That grants the instance role
+# bedrock:InvokeModel and raises the IMDS hop limit to 2 so the container can reach the role —
+# both are automatic; no gateway key is needed.
 
 # ── Build / instance ──────────────────────────────────────────────────────────
 app_repo_url    = "https://github.com/mongodb-partners/mongodb-mastra-agentic-ai-qs.git"
@@ -55,3 +60,12 @@ app_repo_ref    = "main"
 instance_type   = "m6i.large"
 # key_pair_name = "my-existing-key"    # empty ⇒ create one from public_key_path
 public_key_path = "~/.ssh/id_ed25519.pub"
+# ami_id        = "ami-0123456789abcdef0"   # empty ⇒ latest AL2023. PIN this for a long-lived box:
+                                            # Amazon republishes AL2023 and the data source will
+                                            # otherwise propose replacing a running instance.
+
+# ── TLS (optional) ────────────────────────────────────────────────────────────
+# Only for a box whose SG blocks inbound 80, which rules out certbot's HTTP-01 challenge (a
+# VPN-only box). Granting a zone id lets the instance write ACME TXT records for DNS-01 —
+# i.e. write access to the whole zone. A world-reachable box should leave this empty and use HTTP-01.
+# certbot_route53_zone_id = "Z0123456789ABCDEFGHIJ"

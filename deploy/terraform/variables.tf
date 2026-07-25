@@ -265,3 +265,16 @@ variable "public_key_path" {
   type        = string
   default     = "~/.ssh/id_ed25519.pub"
 }
+
+variable "certbot_route53_zone_id" {
+  description = <<-EOT
+    Route 53 hosted-zone id to grant the box DNS-01 write access to, for `certbot --dns-route53`.
+    Empty (default) ⇒ no Route 53 permissions at all.
+
+    Only needed when the security group blocks inbound 80, which makes the HTTP-01 challenge
+    impossible — a VPN-only box is exactly that case. A world-reachable box should use HTTP-01
+    (webroot) and leave this empty, since DNS-01 hands the instance write access to a whole zone.
+  EOT
+  type        = string
+  default     = ""
+}
