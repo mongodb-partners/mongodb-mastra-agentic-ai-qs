@@ -242,6 +242,69 @@
   #tourCard .dots i.on { background:var(--mongo); }
   #tourCard .skip { position:absolute; top:12px; right:14px; color:var(--dim); font-size:11px; cursor:pointer; background:none; border:none; }
 
+  /* ── responsive tiers ──────────────────────────────────────────────── */
+  @media (max-width:1599px) and (min-width:1180px) {
+    :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
+  }
+  @media (max-width:1179px) and (min-width:760px) {
+    :root:not([data-ui="classic"]) #hud { grid-template-columns:minmax(0,1fr) 320px;
+      grid-template-rows:58px 74px auto minmax(0,1fr) 40px;
+      grid-template-areas:"top top" "rail rail" "left right" "center right" "bottom bottom"; }
+    :root:not([data-ui="classic"]) #left > summary { cursor:pointer; min-height:44px; padding:14px 16px; }
+    :root:not([data-ui="classic"]) #left .scroll { height:auto; max-height:34vh; }
+  }
+  @media (max-width:759px) {
+    :root:not([data-ui="classic"]) body { overflow-y:auto; overflow-x:hidden; }
+    :root:not([data-ui="classic"]) #hud { grid-template-columns:minmax(0,1fr);
+      grid-template-rows:auto auto minmax(60vh,auto) auto auto auto;
+      grid-template-areas:"top" "rail" "center" "left" "right" "bottom";
+      height:auto; min-height:100vh; min-height:100dvh; gap:10px; padding:10px; }
+    :root:not([data-ui="classic"]) #center { min-height:60vh; min-height:60dvh; }
+    /* top bar: wraps instead of overflowing; brand tagline and status drop out */
+    :root:not([data-ui="classic"]) #top { flex-wrap:wrap; gap:7px; padding:8px 10px; }
+    :root:not([data-ui="classic"]) #top .tag, :root:not([data-ui="classic"]) #status { display:none; }
+    :root:not([data-ui="classic"]) #top > div[style*="flex:1"] { display:none; }
+    :root:not([data-ui="classic"]) #brand { font-size:15px; letter-spacing:.07em; gap:6px; }
+    :root:not([data-ui="classic"]) #lockup { gap:7px; }
+    :root:not([data-ui="classic"]) #launchBtn { flex:1 0 100%; justify-content:center; }
+    :root:not([data-ui="classic"]) #top .btn { min-height:44px; padding:10px 14px; }
+    :root:not([data-ui="classic"]) #themeBtn { min-width:44px; }
+    /* icon-only utility buttons so the bar stays two rows even at 375px. title= keeps the label. */
+    :root:not([data-ui="classic"]) #tourBtn, :root:not([data-ui="classic"]) #resetBtn { font-size:0; min-width:44px; }
+    :root:not([data-ui="classic"]) #tourBtn::before { content:"?"; font-size:16px; }
+    :root:not([data-ui="classic"]) #resetBtn::before { content:"\21ba"; font-size:16px; }
+    /* rail: horizontal snap strip, icon + count only */
+    :root:not([data-ui="classic"]) #rail { display:flex; overflow-x:auto; overflow-y:hidden;
+      scroll-snap-type:x proximity; gap:8px; padding:8px 10px; -webkit-overflow-scrolling:touch; }
+    :root:not([data-ui="classic"]) #rail::-webkit-scrollbar { height:0; }
+    :root:not([data-ui="classic"]) .cap { flex:0 0 auto; min-width:74px; min-height:44px;
+      scroll-snap-align:start; padding:0 10px; cursor:pointer; }
+    :root:not([data-ui="classic"]) .cap .name, :root:not([data-ui="classic"]) .cap .lbl2 { display:none; }
+    :root:not([data-ui="classic"]) .cap::after { display:none; }
+    /* the money moment gets BIGGER, not smaller */
+    :root:not([data-ui="classic"]) #tcase .tamt { font-size:40px; }
+    :root:not([data-ui="classic"]) #welcome { padding:20px 16px; gap:16px; }
+    :root:not([data-ui="classic"]) #welcome .big { font-size:24px; }
+    :root:not([data-ui="classic"]) #theater { padding:12px 12px; }
+    :root:not([data-ui="classic"]) #tcase { padding:14px 13px; }
+    :root:not([data-ui="classic"]) .tpipe { gap:4px; }
+    :root:not([data-ui="classic"]) .tpipe .tstep { font-size:8.5px; padding:6px 2px 5px; letter-spacing:0; }
+    :root:not([data-ui="classic"]) .stamp { font-size:18px; padding:7px 14px; }
+    /* bottom bar: wrap the readout instead of clipping it to a sliver */
+    :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:10px 12px; gap:8px 14px; }
+    :root:not([data-ui="classic"]) #stats { flex-wrap:wrap; white-space:normal; gap:8px 12px; }
+    :root:not([data-ui="classic"]) #bottom > div[style*="flex:1"] { display:none; }
+    /* collapsible side panels: tap targets and no fixed-height scroll box */
+    :root:not([data-ui="classic"]) #left > summary, :root:not([data-ui="classic"]) #right > summary {
+      cursor:pointer; min-height:44px; padding:14px 16px; }
+    :root:not([data-ui="classic"]) #left .scroll, :root:not([data-ui="classic"]) #right .scroll {
+      height:auto; max-height:52vh; }
+  }
+  @media (max-width:479px) {
+    :root:not([data-ui="classic"]) .edge-amt { display:none; }
+    :root:not([data-ui="classic"]) .ringsvg { height:200px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation:none !important; transition:none !important; }
   }
@@ -304,6 +367,6 @@
     <button class="btn launch" id="tourNext">Next ›</button>
   </div>
 </div>
-<script type="module" src="/app.js?v=15"></script>
+<script type="module" src="/app.js?v=16"></script>
 </body>
 </html>
