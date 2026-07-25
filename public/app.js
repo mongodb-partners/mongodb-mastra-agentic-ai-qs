@@ -34,8 +34,15 @@ let DEMO_MODE = false;
 // ?ui=classic pins the pre-responsive stage layout at every width: every new media query is
 // scoped :root:not([data-ui="classic"]), and density is forced to full. One attribute, no forked
 // bundle. MARSHAL_UI=classic on the server makes it the default for all visitors.
-// This runs synchronously at module scope, BEFORE first paint, so there is no flash of the
-// responsive layout on a classic load.
+// FIRST PAINT IS NOT OURS — do not restore the claim that used to sit here. This file is
+// <script type="module" src="/app.js?v=16"> at the end of <body> in public/index.html, and modules
+// are deferred by definition, so module scope cannot be relied on to beat first paint: measured at
+// 440x956, the call below lands ~130ms after FCP whenever /app.js is slow (conference wifi), and
+// races it even on localhost. The pre-paint resolution of data-ui (and data-theme) therefore lives
+// in the inline blocking <script> in public/index.html's <head> — that script, not this call, is
+// what stops a ?ui=classic load flashing the responsive layout, so do NOT delete it as logic this
+// file already handles. What the call below is for is the re-resolution: it is the only path that
+// can see SERVER_UI, and loadMode() invokes it again once /api/mode answers.
 let SERVER_UI = '';
 function applyUiMode() {
   const q = new URLSearchParams(location.search).get('ui');

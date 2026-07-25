@@ -10,7 +10,9 @@
 // at the end of <body>, so anything it does happens after the browser has already painted. A
 // presenter reaching for ?ui=classic would see a flash of the layout they are escaping, and every
 // light-mode phone scanning the QR code would see a flash of the dark palette. app.js re-resolves
-// both once it runs — this only moves the first paint to the right answer.
+// both once it runs — applyUiMode() and initTheme() in public/app.js — this only moves the first
+// paint to the right answer. Neither of those can replace this script; see the comment above
+// applyUiMode() before touching either half.
 try { var q = new URLSearchParams(location.search).get('ui');
   if (q === 'classic') document.documentElement.setAttribute('data-ui', 'classic');
   // Same order as initTheme(): an explicit stored choice wins, else follow the OS.
