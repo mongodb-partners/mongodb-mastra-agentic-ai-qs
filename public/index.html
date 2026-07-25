@@ -6,13 +6,18 @@
 <title>Marshal: Fraud Investigation Console</title>
 <link rel="icon" href="/favicon.svg">
 <script>
-// The kill switch must be correct at FIRST PAINT: /app.js is a deferred module at the end of
-// <body>, so anything it does happens after the browser has already painted the responsive
-// layout. A presenter reaching for ?ui=classic mid-demo would see a flash of the very layout
-// they are escaping. This blocking inline script sets the attribute before any paint;
-// applyUiMode() in app.js re-resolves it once MARSHAL_UI arrives from /api/mode.
+// The kill switch and the theme must both be correct at FIRST PAINT: /app.js is a deferred module
+// at the end of <body>, so anything it does happens after the browser has already painted. A
+// presenter reaching for ?ui=classic would see a flash of the layout they are escaping, and every
+// light-mode phone scanning the QR code would see a flash of the dark palette. app.js re-resolves
+// both once it runs — this only moves the first paint to the right answer.
 try { var q = new URLSearchParams(location.search).get('ui');
-  if (q === 'classic') document.documentElement.setAttribute('data-ui', 'classic'); } catch (e) {}
+  if (q === 'classic') document.documentElement.setAttribute('data-ui', 'classic');
+  // Same order as initTheme(): an explicit stored choice wins, else follow the OS.
+  var t = localStorage.getItem('marshal-theme')
+    || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', t);
+} catch (e) {}
 </script>
 <style>
   :root {
