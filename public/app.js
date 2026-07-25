@@ -900,6 +900,9 @@ async function loadMode() {
   // Both may change now that the server defaults have arrived. ?ui= / ?density= still win.
   applyUiMode();
   applyDensity(); // renderWelcome() below re-renders at the resolved density
+  // isPhoneTier() is false under classic, so a MARSHAL_UI=classic server must re-open the panels
+  // that boot() collapsed while it still believed this was a phone.
+  syncDisclosures();
   $('#feedMode').textContent = DEMO_MODE ? 'recorded · replay' : 'live · change streams';
   renderLaunchLabel();
   renderWelcome();
