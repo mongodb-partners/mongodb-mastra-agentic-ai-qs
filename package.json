@@ -11,6 +11,7 @@
     "provision": "tsx scripts/provision-and-seed.ts",
     "seed": "tsx scripts/provision-and-seed.ts",
     "eval": "tsx scripts/eval.ts",
+    "reembed": "tsx scripts/reembed-corpus.ts",
     "bake": "tsx scripts/bake-replay.ts",
     "export:replay": "tsx scripts/export-replay.ts",
     "restore:replay": "tsx scripts/restore-replay.ts",
