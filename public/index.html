@@ -371,11 +371,30 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:10px 12px; gap:8px 14px; }
     :root:not([data-ui="classic"]) #stats { flex-wrap:wrap; white-space:normal; gap:8px 12px; }
     :root:not([data-ui="classic"]) #bottom > div[style*="flex:1"] { display:none; }
+    /* This tier is the only one where <body> scrolls (overflow-y:auto above); every other tier
+       pins the page to 100vh and scrolls inside the panels. So on this tier the panels must stop
+       being scrollers, or a gesture that starts inside one is swallowed by it instead of moving
+       the page. Measured at 390x844 before this rule: the page had 459px to scroll, #center .scroll
+       kept `overflow-y:auto; height:calc(100% - 36px)` from :76 and so had 36px of its own range —
+       enough to latch the gesture, too little to move visibly — and a 4000px wheel over #center
+       left window.scrollY at 0. The centre column is the hero and fills most of the phone screen,
+       so that is most of the screen unable to scroll the page it sits on. .panel is
+       overflow:hidden, hence the overflow:visible here: without it the released .scroll just
+       clips instead. */
+    :root:not([data-ui="classic"]) #center { overflow:visible; }
+    :root:not([data-ui="classic"]) #center .scroll { overflow:visible; height:auto; }
     /* collapsible side panels: tap targets and no fixed-height scroll box */
     :root:not([data-ui="classic"]) #left > summary, :root:not([data-ui="classic"]) #right > summary {
       cursor:pointer; min-height:44px; padding:14px 16px; }
+    /* Same trap, milder: these keep a max-height so a 50-row queue does not push the rest of the
+       page miles down, but max-height with overflow-y:auto is still a nested scroller. They are
+       collapsed <details> by default here, so the exposure is small — but once opened, a gesture
+       inside them is swallowed the same way. overscroll-behavior:contain is not the fix (it stops
+       scroll *chaining*, which is the opposite of what is wanted); letting them size to content is,
+       and the page scroll then reaches everything. */
     :root:not([data-ui="classic"]) #left .scroll, :root:not([data-ui="classic"]) #right .scroll {
-      height:auto; max-height:52vh; }
+      height:auto; max-height:none; overflow:visible; }
+    :root:not([data-ui="classic"]) #left, :root:not([data-ui="classic"]) #right { overflow:visible; }
     /* The spotlight does absolute pixel maths against getBoundingClientRect(); once the panels
        stack (and two collapse to a near-zero-height <details>), it lands off-screen or on
        nothing. On this tier the tour is a fixed bottom sheet instead — no geometry involved. */
