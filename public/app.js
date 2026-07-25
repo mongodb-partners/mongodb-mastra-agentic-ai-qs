@@ -30,6 +30,23 @@ const money = n => '$' + Number(n || 0).toLocaleString();
 
 let DEMO_MODE = false;
 
+// ---- UI mode (kill switch) --------------------------------------------------
+// ?ui=classic pins the pre-responsive stage layout at every width: every new media query is
+// scoped :root:not([data-ui="classic"]), and density is forced to full. One attribute, no forked
+// bundle. MARSHAL_UI=classic on the server makes it the default for all visitors.
+// This runs synchronously at module scope, BEFORE first paint, so there is no flash of the
+// responsive layout on a classic load.
+let SERVER_UI = '';
+function applyUiMode() {
+  const q = new URLSearchParams(location.search).get('ui');
+  const mode = q === 'classic' || q === 'auto' ? q
+    : SERVER_UI === 'classic' ? 'classic' : 'auto';
+  if (mode === 'classic') document.documentElement.setAttribute('data-ui', 'classic');
+  else document.documentElement.removeAttribute('data-ui');
+  return mode;
+}
+applyUiMode();
+
 // ---- density ----------------------------------------------------------------
 // How much explanatory copy the welcome screen carries. Resolution order:
 // ?density= (podium override, wins always) -> MARSHAL_DENSITY from /api/mode -> viewport width.
@@ -878,8 +895,11 @@ function initTour() {
 async function loadMode() {
   const m = await fetch('/api/mode').then(r => r.json()).catch(() => ({ demoMode: false }));
   DEMO_MODE = !!m.demoMode;
+  SERVER_UI = m.uiMode || '';
   SERVER_DENSITY = m.uiDensity || '';
-  applyDensity(); // may change now that the server default has arrived; renderWelcome() is below
+  // Both may change now that the server defaults have arrived. ?ui= / ?density= still win.
+  applyUiMode();
+  applyDensity(); // renderWelcome() below re-renders at the resolved density
   $('#feedMode').textContent = DEMO_MODE ? 'recorded · replay' : 'live · change streams';
   renderLaunchLabel();
   renderWelcome();
