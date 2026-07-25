@@ -656,6 +656,34 @@ function wire() {
   });
 }
 
+// ---- viewport-aware disclosures ---------------------------------------------
+/**
+ * The queue and feed ship `open` so they render normally on every desktop tier and degrade to plain
+ * open panels with JS off. On the phone tier they must start COLLAPSED, or the hero is pushed
+ * ~1200px down the page. Driven by matchMedia rather than a resize handler so it also fires when a
+ * phone is rotated, and so an explicit user toggle is never fought: once someone taps a summary we
+ * stop managing that panel.
+ */
+const PHONE_MQ = '(max-width:759px)';
+const userToggled = new Set();
+function syncDisclosures() {
+  const phone = window.matchMedia(PHONE_MQ).matches
+    && document.documentElement.getAttribute('data-ui') !== 'classic';
+  for (const sel of ['#left', '#right']) {
+    const el = $(sel);
+    if (!el || userToggled.has(sel)) continue;
+    el.open = !phone;
+  }
+}
+function initDisclosures() {
+  for (const sel of ['#left', '#right']) {
+    const el = $(sel);
+    if (el) el.querySelector('summary').addEventListener('click', () => userToggled.add(sel));
+  }
+  syncDisclosures();
+  window.matchMedia(PHONE_MQ).addEventListener('change', syncDisclosures);
+}
+
 // ---- theme ------------------------------------------------------------------
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
@@ -726,7 +754,7 @@ async function loadMode() {
   renderWelcome();
 }
 async function boot() {
-  renderLockup(); initTheme(); renderRail(); wire(); showCenter('welcome');
+  renderLockup(); initTheme(); renderRail(); wire(); showCenter('welcome'); initDisclosures();
   await loadMode(); // mode shapes the welcome copy, launch label and tour before anything renders
   initTour();
   loadQueue().then(overlayHeldFromReviews);
