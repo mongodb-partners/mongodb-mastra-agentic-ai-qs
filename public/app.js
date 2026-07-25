@@ -30,6 +30,28 @@ const money = n => '$' + Number(n || 0).toLocaleString();
 
 let DEMO_MODE = false;
 
+// ---- density ----------------------------------------------------------------
+// How much explanatory copy the welcome screen carries. Resolution order:
+// ?density= (podium override, wins always) -> MARSHAL_DENSITY from /api/mode -> viewport width.
+// Nothing is deleted at any tier: the long forms stay in the data and reappear on tap/hover.
+const DENSITIES = ['full', 'lean', 'minimal'];
+let SERVER_DENSITY = '';
+function resolveDensity() {
+  const q = new URLSearchParams(location.search).get('density');
+  if (DENSITIES.includes(q)) return q;
+  if (DENSITIES.includes(SERVER_DENSITY)) return SERVER_DENSITY;
+  if (window.matchMedia('(max-width:759px)').matches) return 'minimal';
+  if (window.matchMedia('(max-width:1179px)').matches) return 'lean';
+  return 'full';
+}
+let DENSITY = 'full';
+function applyDensity() {
+  DENSITY = document.documentElement.getAttribute('data-ui') === 'classic' ? 'full' : resolveDensity();
+  document.documentElement.setAttribute('data-density', DENSITY);
+}
+const dense = (full, lean, minimal) =>
+  DENSITY === 'minimal' ? (minimal !== undefined ? minimal : lean) : DENSITY === 'lean' ? lean : full;
+
 // ---- welcome ----------------------------------------------------------------
 const WELCOME_FLOW = [
   { i: 'triage', n: 'Triage', d: 'rules + compliance screen first' },
@@ -51,16 +73,24 @@ const WELCOME_JOBS = [
 ];
 function renderWelcome() {
   const lead = $('#welcomeLead');
-  if (lead) lead.innerHTML = DEMO_MODE
-    ? `Every flagged transaction is investigated by an AI agent (retrieval, graph fund-tracing, precedent recall, a policy governance layer, and a durable human-approval gate), all on a single MongoDB Atlas cluster. Press <b style="color:var(--mongo)">▶ Replay Investigation</b> to watch a recorded run of the real agent, step for step, then open any case to see exactly how it was decided.`
-    : `Every flagged transaction is investigated by an AI agent (retrieval, graph fund-tracing, precedent recall, a policy governance layer, and a durable human-approval gate), all on a single MongoDB Atlas cluster. Press <b style="color:var(--mongo)">▶ Launch Investigation</b>, then open any case to see exactly how it was decided.`;
+  const cta = `<b style="color:var(--mongo)">▶ ${DEMO_MODE ? 'Replay' : 'Launch'} Investigation</b>`;
+  const tail = DEMO_MODE
+    ? ` to watch a recorded run of the real agent, step for step, then open any case to see exactly how it was decided.`
+    : `, then open any case to see exactly how it was decided.`;
+  if (lead) lead.innerHTML = dense(
+    `Every flagged transaction is investigated by an AI agent (retrieval, graph fund-tracing, precedent recall, a policy governance layer, and a durable human-approval gate), all on a single MongoDB Atlas cluster. Press ${cta}${tail}`,
+    `An AI agent investigates every flagged transaction — retrieval, graph fund-tracing, precedent recall, policy governance and a human-approval gate — on one MongoDB Atlas cluster. Press ${cta}.`,
+    `An AI agent investigates every flagged transaction on one MongoDB Atlas cluster. Press ${cta}.`);
   const flow = $('#wflow');
   if (flow) flow.innerHTML = WELCOME_FLOW.map((s, idx) =>
-    `<div class="wstep"><div class="wi">${icon(s.i, 20)}</div><div class="wn">${s.n}</div><div class="wd">${s.d}</div></div>`
+    `<div class="wstep" title="${esc(s.d)}"><div class="wi">${icon(s.i, 20)}</div><div class="wn">${s.n}</div>`
+    + dense(`<div class="wd">${s.d}</div>`, '') + `</div>`
     + (idx < WELCOME_FLOW.length - 1 ? '<div class="warrow">›</div>' : '')).join('');
   const grid = $('#wgrid');
   if (grid) grid.innerHTML = WELCOME_JOBS.map(j =>
-    `<div class="wjob"><div class="ji">${icon(j.i, 18)}</div><div><b>${j.b}</b><div class="jd">${j.d}</div><div class="jq">${j.q}</div></div></div>`).join('');
+    `<div class="wjob" title="${esc(j.d)}"><div class="ji">${icon(j.i, 18)}</div><div><b>${j.b}</b>`
+    + dense(`<div class="jd">${j.d}</div><div class="jq">${j.q}</div>`, `<div class="jq">${j.q}</div>`, '')
+    + `</div></div>`).join('');
 }
 
 // ---- capability rail --------------------------------------------------------
@@ -682,6 +712,14 @@ function initDisclosures() {
   }
   syncDisclosures();
   window.matchMedia(PHONE_MQ).addEventListener('change', syncDisclosures);
+  // Rotating a phone can cross a density boundary; re-resolve and re-render the welcome copy.
+  for (const mq of ['(max-width:759px)', '(max-width:1179px)']) {
+    window.matchMedia(mq).addEventListener('change', () => {
+      const before = DENSITY;
+      applyDensity();
+      if (DENSITY !== before) renderWelcome();
+    });
+  }
 }
 
 // ---- theme ------------------------------------------------------------------
@@ -772,12 +810,14 @@ function initTour() {
 async function loadMode() {
   const m = await fetch('/api/mode').then(r => r.json()).catch(() => ({ demoMode: false }));
   DEMO_MODE = !!m.demoMode;
+  SERVER_DENSITY = m.uiDensity || '';
+  applyDensity(); // may change now that the server default has arrived; renderWelcome() is below
   $('#feedMode').textContent = DEMO_MODE ? 'recorded · replay' : 'live · change streams';
   renderLaunchLabel();
   renderWelcome();
 }
 async function boot() {
-  renderLockup(); initTheme(); renderRail(); wire(); showCenter('welcome'); initDisclosures();
+  applyDensity(); renderLockup(); initTheme(); renderRail(); wire(); showCenter('welcome'); initDisclosures();
   await loadMode(); // mode shapes the welcome copy, launch label and tour before anything renders
   initTour();
   loadQueue().then(overlayHeldFromReviews);
