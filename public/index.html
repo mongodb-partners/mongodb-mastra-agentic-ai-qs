@@ -307,6 +307,9 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #lockup { gap:7px; }
     :root:not([data-ui="classic"]) #launchBtn { flex:1 0 100%; justify-content:center; }
     :root:not([data-ui="classic"]) #top .btn { min-height:44px; padding:10px 14px; }
+    /* The Approve / Reject gate is the one tap target the whole interactive demo turns on.
+       .btn is 32px by default, so it needs sizing here too — #top .btn above does not cover it. */
+    :root:not([data-ui="classic"]) .actions .btn { min-height:44px; padding:12px 14px; flex:1; }
     :root:not([data-ui="classic"]) #themeBtn { min-width:44px; justify-content:center; }
     :root:not([data-ui="classic"]) #themeBtn .tlbl { display:none; }
     /* icon-only utility buttons so the bar stays two rows even at 375px. title= keeps the label. */
