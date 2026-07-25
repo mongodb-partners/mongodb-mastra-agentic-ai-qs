@@ -50,6 +50,12 @@ function applyUiMode() {
     : SERVER_UI === 'classic' ? 'classic' : 'auto';
   if (mode === 'classic') document.documentElement.setAttribute('data-ui', 'classic');
   else document.documentElement.removeAttribute('data-ui');
+  // Informational, not a contract: neither call site consumes it, and nothing should start to.
+  // data-ui on <html> is the single source of truth for "is the kill switch on" — the inline head
+  // script in index.html sets the same attribute without ever calling this function, so a consumer
+  // reading a return value here would miss the pre-paint resolution. Read the attribute instead
+  // (applyDensity() at :74 is the pattern). Kept because it is free, cannot drift — it is the same
+  // `mode` that drove the branch above — and answers "which input won" when debugging on stage.
   return mode;
 }
 applyUiMode();
@@ -851,17 +857,49 @@ function positionTour() {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       // The last elements in the document (#stats, #auditChip) cannot be scrolled above a
       // bottom sheet — the page is already at scrollMax — so move the sheet to the top instead.
-      // Measured after the smooth scroll settles; there is no scrollend event in Safari 18.
+      //
+      // This MUST measure a settled page, and there is no scrollend event in Safari 18. It used to
+      // wait a fixed 420ms, which is not the same thing: smooth-scroll duration grows with distance
+      // and with CPU pressure, and #feed is the tour's longest jump (~1982px, straight to
+      // scrollMax at 440x956). Measured at that step with the fixed delay — 6x CPU throttle put
+      // scrollY at 1867/2058 and vis at 0.558 when the probe fired, against 0.826 once settled;
+      // at 14x it read 0.476 and flipped the sheet to the top for a subject that ends up fully
+      // visible. A 0.058 margin on a slow phone is not a margin. So poll for the scroll to stop
+      // moving instead: two consecutive equal scrollY samples one frame apart, then measure.
+      //
+      // The cap matters as much as the poll — scroll can be interrupted (the visitor drags
+      // mid-animation, or an anchored scroll never reaches its target) and this must not become a
+      // probe that never fires. On timeout we measure anyway: a stale-but-real geometry beats no
+      // decision, and the worst case is the pre-existing behaviour.
+      //
       // The generation check discards a probe whose step has already been left: two taps closer
-      // together than this timeout would otherwise flip the new step's card off the old one's
+      // together than the settle would otherwise flip the new step's card off the old one's
       // geometry.
-      setTimeout(() => {
-        if (gen !== tourGen) return;
+      // START_FLOOR exists because "two equal samples" is also true BEFORE the animation begins.
+      // Without it the poll settles on the frame after the click, reading the OLD scroll position:
+      // observed #rail flipping to the top on 1 run in 2, because scrollY was 0 twice while the
+      // scroll to 561 had not started yet. Motion begins within ~60ms even at 6x throttle, so 200ms
+      // is comfortably past the start without being perceptible. A step whose subject is already in
+      // view scrolls not at all — that is the case the floor costs, and it costs it 200ms.
+      const START_FLOOR = 200;
+      const t0 = performance.now();
+      let lastY = null, frames = 0;
+      const measure = () => {
         const rr = el.getBoundingClientRect();
         const ct = card.getBoundingClientRect().top;
         const vis = Math.max(0, Math.min(rr.bottom, ct) - Math.max(rr.top, 0));
         if (vis / Math.max(1, rr.height) < 0.5) card.classList.add('attop');
-      }, 420);
+      };
+      const poll = () => {
+        if (gen !== tourGen) return;              // step already left; drop this probe
+        const y = Math.round(window.scrollY);
+        const still = y === lastY;
+        lastY = y;
+        if (still && performance.now() - t0 > START_FLOOR) return measure();   // settled
+        if (++frames > 120) return measure();     // ~2s cap: interrupted or never-settling scroll
+        requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
     }
   } else if (el) {
     const r = el.getBoundingClientRect(); const pad = 8;
