@@ -788,7 +788,19 @@ function positionTour() {
   // subject is usually off-screen, and a sheet describing an invisible element is useless.
   if (isPhoneTier()) {
     card.style.display = 'block';
-    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    card.classList.remove('attop');
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      // The last elements in the document (#stats, #auditChip) cannot be scrolled above a
+      // bottom sheet — the page is already at scrollMax — so move the sheet to the top instead.
+      // Measured after the smooth scroll settles; there is no scrollend event in Safari 18.
+      setTimeout(() => {
+        const rr = el.getBoundingClientRect();
+        const ct = card.getBoundingClientRect().top;
+        const vis = Math.max(0, Math.min(rr.bottom, ct) - Math.max(rr.top, 0));
+        if (vis / Math.max(1, rr.height) < 0.5) card.classList.add('attop');
+      }, 420);
+    }
   } else if (el) {
     const r = el.getBoundingClientRect(); const pad = 8;
     const hole = $('#tourHole');
@@ -818,7 +830,7 @@ function startTour() {
   }
   $('#tourMask').classList.add('on'); positionTour();
 }
-function endTour() { $('#tourMask').classList.remove('on'); $('#tourCard').style.display = 'none'; localStorage.setItem('marshal-tour-seen', '1'); }
+function endTour() { $('#tourMask').classList.remove('on'); $('#tourCard').classList.remove('attop'); $('#tourCard').style.display = 'none'; localStorage.setItem('marshal-tour-seen', '1'); }
 
 // ---- rail tip sheet ---------------------------------------------------------
 // .cap::after is a :hover tooltip with cursor:help — it never fires on a touch device, so the
@@ -850,7 +862,7 @@ function initTour() {
   // inline top/left the spotlight branch wrote, or they fight the sheet's CSS.
   window.matchMedia(PHONE_MQ).addEventListener('change', () => {
     const card = $('#tourCard');
-    card.style.top = ''; card.style.left = '';
+    card.style.top = ''; card.style.left = ''; card.classList.remove('attop');
     if ($('#tourMask').classList.contains('on')) positionTour();
   });
   const suppressed = new URLSearchParams(location.search).get('tour') === '0';
