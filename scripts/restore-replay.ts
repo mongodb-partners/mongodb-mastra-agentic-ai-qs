@@ -2,9 +2,11 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { MongoClient, BSON } from 'mongodb';
-import { loadConfig } from '../src/config';
+import { DEV_AUDIT_SECRET, loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
 import { REPLAY_COLLECTIONS } from '../src/data/replay-store';
+import { resignAuditChain } from '../src/governance/resign-chain';
+import { checkReplayHealth } from '../src/data/replay-health';
 
 /**
  * Restore the demo recording from the versioned JSON in `data/replay/` into the immutable
@@ -13,8 +15,18 @@ import { REPLAY_COLLECTIONS } from '../src/data/replay-store';
  *
  * Note: this only writes the recording. Run `pnpm provision` first so the transactions/policies
  * the recording references exist on the cluster.
+ *
+ * Two post-restore fences run automatically, because the raw restore alone has repeatedly produced
+ * a broken-looking demo on a fresh box:
+ *   1. The restored audit chain is re-signed under this deployment's AUDIT_SECRET. The committed
+ *      chain is signed with the dev fallback (baking is a local step), so a box with a real secret
+ *      would show "AUDIT CHAIN BROKEN" on an untampered ledger. See src/governance/resign-chain.ts.
+ *   2. `checkReplayHealth` warns when the recording has gone stale against this cluster — precedent
+ *      ids that don't exist here, or timings the pipeline has long since beaten.
+ * `--strict` turns the health warnings into a non-zero exit for CI.
  */
 const IN_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'replay');
+const STRICT = process.argv.includes('--strict');
 
 async function main() {
   try { process.loadEnvFile(); } catch { /* .env optional */ }
@@ -34,7 +46,40 @@ async function main() {
   }
   logger.info('restored demo recording from data/replay/ (no LLM used)', summary);
 
+  // ── Fence 1: align the restored chain with this box's key, so /api/audit/verify reads clean.
+  if (cfg.auditSecret === DEV_AUDIT_SECRET) {
+    logger.info('audit chain left as-is (this deployment uses the dev audit secret)');
+  } else {
+    const res = await resignAuditChain(
+      db, REPLAY_COLLECTIONS.audit_trail, DEV_AUDIT_SECRET, cfg.auditSecret,
+    );
+    if (res.status === 'tampered') {
+      // The chain verifies under NEITHER key. Re-signing would launder real tampering into a
+      // valid-looking ledger, so stop and make a human look at it.
+      throw new Error(
+        `restored audit chain (${res.records} records) does not verify under this deployment's ` +
+        'AUDIT_SECRET or the dev secret it was baked with — the exported ledger may be corrupt. ' +
+        `Refusing to re-sign. Broken links: ${JSON.stringify(res.brokenLinks)}`,
+      );
+    }
+    logger.info('audit chain aligned with this deployment\'s AUDIT_SECRET', {
+      status: res.status, records: res.records,
+    });
+  }
+
+  // ── Fence 2: report staleness. Warn by default; --strict fails the run.
+  const health = await checkReplayHealth(db);
+  for (const w of health.warnings) logger.warn(`replay staleness: ${w}`);
+  if (health.ok) {
+    logger.info('replay health OK', {
+      corpus: health.corpusSize, recording_span_s: +(health.recordingSpanMs / 1000).toFixed(1),
+    });
+  }
+
   await client.close();
+  if (!health.ok && STRICT) {
+    throw new Error(`replay health check failed with ${health.warnings.length} warning(s) (--strict)`);
+  }
 }
 
 main().then(() => process.exit(0)).catch(err => { logger.error('restore-replay failed', { err: String(err) }); process.exit(1); });

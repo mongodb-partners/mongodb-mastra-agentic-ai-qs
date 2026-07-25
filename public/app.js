@@ -538,16 +538,22 @@ let replayTimer = null;
  * faster than the run it recorded. Timing is part of what this demo is showing, so it is now real.
  *
  * Two bounds, and nothing else, are applied to the recorded gaps:
- *   MIN — sub-frame gaps (the baked run has 280 ms case handoffs) would drop events into the same
- *         paint, so a viewer would see steps appear to skip.
- *   MAX — one recorded `govern` gap is 35.8 s, a cold-start outlier that would look like a hang and
- *         alone would be a quarter of the whole replay. Clamping it keeps the shape truthful
- *         without making the outlier the whole experience.
- * TERMINAL_MIN is a readability floor, not pacing: the recorded gap after a verdict is only ~280 ms
- * (the engine moves straight to the next case), which is not long enough to read the stamp.
+ *   MIN — most gaps are now sub-frame. In the current recording 19 of 37 are 4–38 ms (retrieval,
+ *         graph→govern bookkeeping, case handoffs), which would drop several events into the same
+ *         paint and read as steps being skipped.
+ *   MAX — the slowest recorded gap is a 16.0 s model call, which alone would be a third of the
+ *         replay and read as a hang. Clamping keeps the shape truthful without letting the outlier
+ *         become the experience. It bites 3 of 37 gaps.
+ * TERMINAL_MIN is a readability floor, not pacing: the recorded gap after a verdict is ~5 ms (the
+ * engine moves straight to the next case), nowhere near long enough to read the stamp.
+ *
+ * These bounds are calibrated to the CURRENT recording, so they go stale when it is re-baked or
+ * re-timed — `pnpm check:replay` reports how many gaps each bound is touching. If MIN is floating
+ * most of the run the recording is faster than the constants assume; re-tune rather than let the
+ * floors become the pacing.
  *
  * `?speed=N` divides every dwell — for a booth loop that needs to fit a shorter window. Default 1
- * is true-to-recording (~90 s for the 6-case run).
+ * is true-to-recording (~48 s for the 6-case run).
  */
 const REPLAY_PACE = { MIN_MS: 140, MAX_MS: 6000, TERMINAL_MIN_MS: 1600 };
 

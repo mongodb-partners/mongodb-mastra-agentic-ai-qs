@@ -54,7 +54,12 @@ const EnvSchema = z.object({
   SEED_SCALE_COUNT: z.coerce.number().int().min(0).default(1200),
 });
 
-const DEV_AUDIT_SECRET = 'marshal-dev-audit-secret';
+/**
+ * Exported because the committed replay audit chain is signed with it (baking runs locally, where
+ * AUDIT_SECRET is usually unset), so `pnpm restore:replay` needs it as the "old" key when re-signing
+ * the chain for a box that sets a real secret. Never a valid production audit key.
+ */
+export const DEV_AUDIT_SECRET = 'marshal-dev-audit-secret';
 const DEV_SESSION_SECRET = 'marshal-dev-session-secret';
 
 export function loadConfig(

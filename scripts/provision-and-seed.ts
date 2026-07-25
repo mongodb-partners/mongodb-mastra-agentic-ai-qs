@@ -6,6 +6,7 @@ import {
 } from '../src/data/provision-transactions';
 import { seedTransactions, seedSyntheticCorpus, countDecidedPrecedents } from '../src/data/seed-transactions';
 import { runSearchSelfCheck } from '../src/data/search-self-check';
+import { checkReplayHealth } from '../src/data/replay-health';
 import { TRANSACTIONS_COLLECTION } from '../src/mastra/schemas/transactions';
 import { provisionPolicyIndexes, seedPolicies } from '../src/governance/provision-policies';
 import { getQueryEmbedder } from '../src/mastra/embed';
@@ -59,6 +60,13 @@ async function main() {
     await db.collection('session_resolutions').createIndex({ sessionId: 1 }).catch(() => {});
     await db.collection('session_resolutions').createIndex({ decided_at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {});
     logger.info('provisioned session_resolutions (indexed + 24h TTL)');
+
+    // A recording already on this cluster was baked against whatever corpus existed then. Re-seeding
+    // at a different SEED_SCALE_COUNT silently strands the precedent ids it cites — the replay shows
+    // chips that open onto nothing. Warn here rather than at demo time; the recording is what needs
+    // fixing (`pnpm bake`, or the overlay's rebake-replay-precedents), not this seed run.
+    const replayHealth = await checkReplayHealth(db);
+    for (const w of replayHealth.warnings) logger.warn(`replay staleness after re-seed: ${w}`);
 
     logger.info('provision-and-seed complete');
   } finally {
