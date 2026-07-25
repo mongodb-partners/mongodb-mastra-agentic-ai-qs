@@ -322,9 +322,16 @@ try { var q = new URLSearchParams(location.search).get('ui');
   }
   @media (max-width:759px) {
     :root:not([data-ui="classic"]) body { overflow-y:auto; overflow-x:hidden; }
+    /* The rail sits BELOW the hero here, unlike every other tier. It is 8 tiles on two rows (see the
+       #rail rule), ~108px, and above the hero that stacked with the wrapped #top to push the console
+       past the fold — measured at 375x667: hero top 251px against a 233px budget, and 302px at
+       320x568. Moving it below buys that height back for the thing the QR audience came to see and
+       costs nothing, because the page scrolls on this tier: the counters are one short scroll away
+       rather than one invisible sideways swipe away. Order is the only change; the rail keeps its
+       grid-area name. */
     :root:not([data-ui="classic"]) #hud { grid-template-columns:minmax(0,1fr);
-      grid-template-rows:auto auto minmax(60vh,auto) auto auto auto;
-      grid-template-areas:"top" "rail" "center" "left" "right" "bottom";
+      grid-template-rows:auto minmax(60vh,auto) auto auto auto auto;
+      grid-template-areas:"top" "center" "rail" "left" "right" "bottom";
       height:auto; min-height:100vh; min-height:100dvh; gap:10px; padding:10px; }
     :root:not([data-ui="classic"]) #center { min-height:60vh; min-height:60dvh; }
     /* top bar: wraps instead of overflowing; brand tagline and status drop out */
@@ -350,12 +357,16 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #tourBtn, :root:not([data-ui="classic"]) #resetBtn { font-size:0; min-width:44px; }
     :root:not([data-ui="classic"]) #tourBtn::before { content:"?"; font-size:16px; }
     :root:not([data-ui="classic"]) #resetBtn::before { content:"\21ba"; font-size:16px; }
-    /* rail: horizontal snap strip, icon + count only */
-    :root:not([data-ui="classic"]) #rail { display:flex; overflow-x:auto; overflow-y:hidden;
-      scroll-snap-type:x proximity; gap:8px; padding:8px 10px; -webkit-overflow-scrolling:touch; }
-    :root:not([data-ui="classic"]) #rail::-webkit-scrollbar { height:0; }
-    :root:not([data-ui="classic"]) .cap { flex:0 0 auto; min-width:74px; min-height:44px;
-      scroll-snap-align:start; padding:0 10px; cursor:pointer; }
+    /* rail: 8 tiles as a 4x2 grid, icon + count only.
+       This was a horizontal snap strip, which put tiles 5-8 off the right edge — so half the
+       counters were invisible unless you knew to swipe a strip that gives no visual hint it
+       scrolls. Wrapping to two rows costs ~46px of height on a page that already scrolls, and buys
+       all eight numbers on screen at once. minmax(0,1fr) not a min-width: at 320px the four
+       columns are 69px each, so any min-width above that would reintroduce the overflow this
+       fixes. No scroll-snap or -webkit-overflow-scrolling here — nothing scrolls anymore. */
+    :root:not([data-ui="classic"]) #rail { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:6px; padding:6px 10px; }
+    :root:not([data-ui="classic"]) .cap { min-height:44px; padding:0 8px; cursor:pointer; }
     :root:not([data-ui="classic"]) .cap .name, :root:not([data-ui="classic"]) .cap .lbl2 { display:none; }
     :root:not([data-ui="classic"]) .cap::after { display:none; }
     /* the money moment gets BIGGER, not smaller */
