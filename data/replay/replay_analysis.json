@@ -40,66 +40,66 @@
         }
       },
       {
-        "transaction_id": "txn-syn-00675",
-        "text": "High-value wire of 215,962 USD from Peregrine Freight to Northwind Foods for a M&A tranche payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "transaction_id": "txn-syn-00037",
+        "text": "High-value wire of 113,392 USD from Lanternfish Media to Stoneharbor Imports for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
         "amount": {
-          "$numberInt": "215962"
+          "$numberInt": "113392"
         },
         "currency": "USD",
         "sender": {
-          "name": "Peregrine Freight",
-          "account_number": "ACC-SYN-8807"
+          "name": "Lanternfish Media",
+          "account_number": "ACC-SYN-8530"
         },
         "recipient": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-4207"
-        },
-        "status": "approved",
-        "lane": "high_value",
-        "score": {
-          "$numberDouble": "0.031754032258064516"
-        }
-      },
-      {
-        "transaction_id": "txn-syn-01010",
-        "text": "High-value wire of 248,839 USD from Orchid Cosmetics to Northwind Foods for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
-        "amount": {
-          "$numberInt": "248839"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Orchid Cosmetics",
-          "account_number": "ACC-SYN-5969"
-        },
-        "recipient": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-5474"
-        },
-        "status": "approved",
-        "lane": "high_value",
-        "score": {
-          "$numberDouble": "0.031754032258064516"
-        }
-      },
-      {
-        "transaction_id": "txn-syn-00705",
-        "text": "High-value wire of 136,215 USD from Northwind Foods to Aurora Med Supplies for a fleet acquisition payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
-        "amount": {
-          "$numberInt": "136215"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-7341"
-        },
-        "recipient": {
-          "name": "Aurora Med Supplies",
-          "account_number": "ACC-SYN-6137"
+          "name": "Stoneharbor Imports",
+          "account_number": "ACC-SYN-6560"
         },
         "status": "escalated",
         "lane": "high_value",
         "score": {
-          "$numberDouble": "0.030798389007344232"
+          "$numberDouble": "0.03128054740957967"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00002",
+        "text": "High-value wire of 144,463 USD from Quanta Fabrication to Clearspring Water Co for a M&A tranche payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "amount": {
+          "$numberInt": "144463"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Quanta Fabrication",
+          "account_number": "ACC-SYN-2775"
+        },
+        "recipient": {
+          "name": "Clearspring Water Co",
+          "account_number": "ACC-SYN-5506"
+        },
+        "status": "approved",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.029877369007803793"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00022",
+        "text": "High-value wire of 140,021 USD from Bluepeak Analytics to Redwood Office Systems for a M&A tranche payment. Above the enhanced-due-diligence threshold; documentation reviewed.",
+        "amount": {
+          "$numberInt": "140021"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Bluepeak Analytics",
+          "account_number": "ACC-SYN-4506"
+        },
+        "recipient": {
+          "name": "Redwood Office Systems",
+          "account_number": "ACC-SYN-5910"
+        },
+        "status": "approved",
+        "lane": "high_value",
+        "score": {
+          "$numberDouble": "0.02919863597612958"
         }
       }
     ],
@@ -110,8 +110,8 @@
         "lane": "high_value"
       },
       {
-        "transaction_id": "txn-syn-00675",
-        "disposition": "approved",
+        "transaction_id": "txn-syn-00037",
+        "disposition": "escalated",
         "lane": "high_value"
       }
     ],
@@ -323,66 +323,66 @@
         }
       },
       {
-        "transaction_id": "txn-syn-00079",
-        "text": "Cash deposit of 4,921 USD just under the 5000 USD reporting threshold at Quanta Fabrication; deposit 3 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "transaction_id": "txn-syn-00024",
+        "text": "Cash deposit of 4,998 USD just under the 5000 USD reporting threshold at Foundry Metalworks; deposit 5 in a repeated sub-threshold pattern this week. Flagged as structuring.",
         "amount": {
-          "$numberInt": "4921"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Quanta Fabrication",
-          "account_number": "ACC-SYN-5210"
-        },
-        "recipient": {
-          "name": "Copperline Utilities",
-          "account_number": "ACC-SYN-8343"
-        },
-        "status": "rejected",
-        "lane": "structuring",
-        "score": {
-          "$numberDouble": "0.031024531024531024"
-        }
-      },
-      {
-        "transaction_id": "txn-syn-00361",
-        "text": "Cash deposit of 4,934 USD just under the 5000 USD reporting threshold at Quanta Fabrication; deposit 4 in a repeated sub-threshold pattern this week. Flagged as structuring.",
-        "amount": {
-          "$numberInt": "4934"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Quanta Fabrication",
-          "account_number": "ACC-SYN-5009"
-        },
-        "recipient": {
-          "name": "Quanta Fabrication",
-          "account_number": "ACC-SYN-5529"
-        },
-        "status": "rejected",
-        "lane": "structuring",
-        "score": {
-          "$numberDouble": "0.02976190476190476"
-        }
-      },
-      {
-        "transaction_id": "txn-syn-00109",
-        "text": "Cash deposit of 4,985 USD just under the 5000 USD reporting threshold at Foundry Metalworks; deposit 5 in a repeated sub-threshold pattern this week. Flagged as structuring.",
-        "amount": {
-          "$numberInt": "4985"
+          "$numberInt": "4998"
         },
         "currency": "USD",
         "sender": {
           "name": "Foundry Metalworks",
-          "account_number": "ACC-SYN-3301"
+          "account_number": "ACC-SYN-4159"
         },
         "recipient": {
           "name": "Foundry Metalworks",
-          "account_number": "ACC-SYN-1527"
+          "account_number": "ACC-SYN-5022"
         },
         "status": "escalated",
         "lane": "structuring",
         "score": {
-          "$numberDouble": "0.029386529386529386"
+          "$numberDouble": "0.03200204813108039"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00042",
+        "text": "Cash deposit of 4,927 USD just under the 5000 USD reporting threshold at Lanternfish Media; deposit 5 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "amount": {
+          "$numberInt": "4927"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Lanternfish Media",
+          "account_number": "ACC-SYN-1898"
+        },
+        "recipient": {
+          "name": "Clearspring Water Co",
+          "account_number": "ACC-SYN-6644"
+        },
+        "status": "escalated",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.031746031746031744"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00016",
+        "text": "Cash deposit of 4,970 USD just under the 5000 USD reporting threshold at Peregrine Freight; deposit 3 in a repeated sub-threshold pattern this week. Flagged as structuring.",
+        "amount": {
+          "$numberInt": "4970"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Peregrine Freight",
+          "account_number": "ACC-SYN-2988"
+        },
+        "recipient": {
+          "name": "Peregrine Freight",
+          "account_number": "ACC-SYN-9941"
+        },
+        "status": "escalated",
+        "lane": "structuring",
+        "score": {
+          "$numberDouble": "0.03149801587301587"
         }
       }
     ],
@@ -393,8 +393,8 @@
         "lane": "structuring"
       },
       {
-        "transaction_id": "txn-syn-00079",
-        "disposition": "rejected",
+        "transaction_id": "txn-syn-00024",
+        "disposition": "escalated",
         "lane": "structuring"
       }
     ],
@@ -584,66 +584,66 @@
         }
       },
       {
-        "transaction_id": "txn-syn-00750",
-        "text": "Recurring payroll credit of 7,336 USD from Northwind Foods to W. Calloway. Established relationship, consistent with prior activity, no anomalies.",
+        "transaction_id": "txn-syn-00023",
+        "text": "Recurring payroll credit of 8,182 USD from Lanternfish Media to Cascade Textiles. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "7336"
+          "$numberInt": "8182"
         },
         "currency": "USD",
         "sender": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-9035"
+          "name": "Lanternfish Media",
+          "account_number": "ACC-SYN-2523"
         },
         "recipient": {
-          "name": "W. Calloway",
-          "account_number": "ACC-SYN-8950"
+          "name": "Cascade Textiles",
+          "account_number": "ACC-SYN-5558"
         },
         "status": "approved",
         "lane": "clean_approve",
         "score": {
-          "$numberDouble": "0.03225806451612903"
+          "$numberDouble": "0.031054405392392875"
         }
       },
       {
-        "transaction_id": "txn-syn-00631",
-        "text": "Recurring payroll credit of 3,125 USD from Northwind Foods to Orchid Cosmetics. Established relationship, consistent with prior activity, no anomalies.",
+        "transaction_id": "txn-syn-00004",
+        "text": "Quarterly vendor settlement of 1,862 USD from Orchid Cosmetics to Northwind Foods. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "3125"
+          "$numberInt": "1862"
         },
         "currency": "USD",
         "sender": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-3836"
-        },
-        "recipient": {
           "name": "Orchid Cosmetics",
-          "account_number": "ACC-SYN-7138"
+          "account_number": "ACC-SYN-8584"
+        },
+        "recipient": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-5389"
         },
         "status": "approved",
         "lane": "clean_approve",
         "score": {
-          "$numberDouble": "0.0315136476426799"
+          "$numberDouble": "0.030798389007344232"
         }
       },
       {
-        "transaction_id": "txn-syn-00521",
-        "text": "Recurring payroll credit of 581 USD from Northwind Foods to Halcyon Motors. Established relationship, consistent with prior activity, no anomalies.",
+        "transaction_id": "txn-syn-00046",
+        "text": "Recurring payroll credit of 2,038 USD from Orchid Cosmetics to Bluepeak Analytics. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "581"
+          "$numberInt": "2038"
         },
         "currency": "USD",
         "sender": {
-          "name": "Northwind Foods",
-          "account_number": "ACC-SYN-6333"
+          "name": "Orchid Cosmetics",
+          "account_number": "ACC-SYN-7952"
         },
         "recipient": {
-          "name": "Halcyon Motors",
-          "account_number": "ACC-SYN-1522"
+          "name": "Bluepeak Analytics",
+          "account_number": "ACC-SYN-4884"
         },
         "status": "approved",
         "lane": "clean_approve",
         "score": {
-          "$numberDouble": "0.03128054740957967"
+          "$numberDouble": "0.030798389007344232"
         }
       }
     ],
@@ -654,7 +654,7 @@
         "lane": "clean_approve"
       },
       {
-        "transaction_id": "txn-syn-00750",
+        "transaction_id": "txn-syn-00023",
         "disposition": "approved",
         "lane": "clean_approve"
       }
@@ -795,48 +795,6 @@
         }
       },
       {
-        "transaction_id": "txn-syn-00477",
-        "text": "Transfer of 1,160 USD from Y. Dominguez to Foundry Metalworks; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
-        "amount": {
-          "$numberInt": "1160"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Y. Dominguez",
-          "account_number": "ACC-SYN-4882"
-        },
-        "recipient": {
-          "name": "Foundry Metalworks",
-          "account_number": "ACC-SYN-7372"
-        },
-        "status": "rejected",
-        "lane": "clear_reject",
-        "score": {
-          "$numberDouble": "0.03200204813108039"
-        }
-      },
-      {
-        "transaction_id": "txn-syn-00862",
-        "text": "Transfer of 298 USD from M. Okafor to Bluepeak Analytics; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
-        "amount": {
-          "$numberInt": "298"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "M. Okafor",
-          "account_number": "ACC-SYN-6915"
-        },
-        "recipient": {
-          "name": "Bluepeak Analytics",
-          "account_number": "ACC-SYN-5564"
-        },
-        "status": "rejected",
-        "lane": "clear_reject",
-        "score": {
-          "$numberDouble": "0.0315136476426799"
-        }
-      },
-      {
         "transaction_id": "txn-syn-00003",
         "text": "Transfer of 189 USD from D. Kowalski to Foundry Metalworks; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
         "amount": {
@@ -854,7 +812,49 @@
         "status": "rejected",
         "lane": "clear_reject",
         "score": {
-          "$numberDouble": "0.03128054740957967"
+          "$numberDouble": "0.03225806451612903"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00020",
+        "text": "Transfer of 934 USD from A. Lindqvist to Peregrine Freight; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "934"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "A. Lindqvist",
+          "account_number": "ACC-SYN-6197"
+        },
+        "recipient": {
+          "name": "Peregrine Freight",
+          "account_number": "ACC-SYN-2869"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.03200204813108039"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00044",
+        "text": "Transfer of 2,385 USD from A. Lindqvist to Cascade Textiles; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "2385"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "A. Lindqvist",
+          "account_number": "ACC-SYN-4064"
+        },
+        "recipient": {
+          "name": "Cascade Textiles",
+          "account_number": "ACC-SYN-3161"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.031754032258064516"
         }
       }
     ],
@@ -865,7 +865,7 @@
         "lane": "clear_reject"
       },
       {
-        "transaction_id": "txn-syn-00477",
+        "transaction_id": "txn-syn-00003",
         "disposition": "rejected",
         "lane": "clear_reject"
       }
@@ -1030,27 +1030,6 @@
         }
       },
       {
-        "transaction_id": "txn-ring-02",
-        "text": "Transfer of 880 USD from Vertex Holdings to Slate Partners, continuing the layering chain with small sub-threshold amounts.",
-        "amount": {
-          "$numberInt": "880"
-        },
-        "currency": "USD",
-        "sender": {
-          "name": "Vertex Holdings",
-          "account_number": "ACC-RING-B"
-        },
-        "recipient": {
-          "name": "Slate Partners",
-          "account_number": "ACC-RING-C"
-        },
-        "status": "rejected",
-        "lane": "ring",
-        "score": {
-          "$numberDouble": "0.03200204813108039"
-        }
-      },
-      {
         "transaction_id": "txn-ring-03",
         "text": "Transfer of 850 USD from Slate Partners back to Quartz Trading, closing a circular money-flow loop across the network.",
         "amount": {
@@ -1068,28 +1047,49 @@
         "status": "rejected",
         "lane": "ring",
         "score": {
-          "$numberDouble": "0.031754032258064516"
+          "$numberDouble": "0.03225806451612903"
         }
       },
       {
-        "transaction_id": "txn-syn-00095",
-        "text": "Transfer of 939 USD from Basalt Construction to Basalt Construction, one hop in a rapid multi-account chain that returns funds near their origin. Consistent with mule-ring layering.",
+        "transaction_id": "txn-ring-02",
+        "text": "Transfer of 880 USD from Vertex Holdings to Slate Partners, continuing the layering chain with small sub-threshold amounts.",
         "amount": {
-          "$numberInt": "939"
+          "$numberInt": "880"
         },
         "currency": "USD",
         "sender": {
-          "name": "Basalt Construction",
-          "account_number": "ACC-SYNRING-2B"
+          "name": "Vertex Holdings",
+          "account_number": "ACC-RING-B"
         },
         "recipient": {
-          "name": "Basalt Construction",
-          "account_number": "ACC-SYNRING-2C"
+          "name": "Slate Partners",
+          "account_number": "ACC-RING-C"
         },
-        "status": "escalated",
+        "status": "rejected",
         "lane": "ring",
         "score": {
-          "$numberDouble": "0.028665028665028666"
+          "$numberDouble": "0.031746031746031744"
+        }
+      },
+      {
+        "transaction_id": "txn-syn-00033",
+        "text": "Transfer of 1,526 USD from Y. Dominguez to Northwind Foods; account takeover pattern: password reset followed by an immediate transfer to a new payee. Rejected as confirmed fraud.",
+        "amount": {
+          "$numberInt": "1526"
+        },
+        "currency": "USD",
+        "sender": {
+          "name": "Y. Dominguez",
+          "account_number": "ACC-SYN-4040"
+        },
+        "recipient": {
+          "name": "Northwind Foods",
+          "account_number": "ACC-SYN-3557"
+        },
+        "status": "rejected",
+        "lane": "clear_reject",
+        "score": {
+          "$numberDouble": "0.030536130536130537"
         }
       }
     ],
@@ -1100,7 +1100,7 @@
         "lane": "ring"
       },
       {
-        "transaction_id": "txn-ring-02",
+        "transaction_id": "txn-ring-03",
         "disposition": "rejected",
         "lane": "ring"
       }

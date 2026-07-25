@@ -21,7 +21,7 @@
     "transaction_id": "txn-review-high",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-high-01, txn-syn-00675, txn-syn-01010, txn-syn-00705",
+    "detail": "txn-high-01, txn-syn-00037, txn-syn-00002, txn-syn-00022",
     "capabilities": [
       "hybrid",
       "vector",
@@ -41,7 +41,7 @@
     "transaction_id": "txn-review-high",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-high-01→approved, txn-syn-00675→approved",
+    "detail": "txn-high-01→approved, txn-syn-00037→escalated",
     "capabilities": [
       "memory"
     ],
@@ -196,7 +196,7 @@
     "transaction_id": "txn-review-struct",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-struct-01, txn-syn-00079, txn-syn-00361, txn-syn-00109",
+    "detail": "txn-struct-01, txn-syn-00024, txn-syn-00042, txn-syn-00016",
     "capabilities": [
       "hybrid",
       "vector",
@@ -216,7 +216,7 @@
     "transaction_id": "txn-review-struct",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-struct-01→rejected, txn-syn-00079→rejected",
+    "detail": "txn-struct-01→rejected, txn-syn-00024→escalated",
     "capabilities": [
       "memory"
     ],
@@ -319,7 +319,7 @@
     "transaction_id": "txn-review-clean",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-clean-01, txn-syn-00750, txn-syn-00631, txn-syn-00521",
+    "detail": "txn-clean-01, txn-syn-00023, txn-syn-00004, txn-syn-00046",
     "capabilities": [
       "hybrid",
       "vector",
@@ -339,7 +339,7 @@
     "transaction_id": "txn-review-clean",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-clean-01→approved, txn-syn-00750→approved",
+    "detail": "txn-clean-01→approved, txn-syn-00023→approved",
     "capabilities": [
       "memory"
     ],
@@ -442,7 +442,7 @@
     "transaction_id": "txn-review-reject",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-reject-01, txn-syn-00477, txn-syn-00862, txn-syn-00003",
+    "detail": "txn-reject-01, txn-syn-00003, txn-syn-00020, txn-syn-00044",
     "capabilities": [
       "hybrid",
       "vector",
@@ -462,7 +462,7 @@
     "transaction_id": "txn-review-reject",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-reject-01→rejected, txn-syn-00477→rejected",
+    "detail": "txn-reject-01→rejected, txn-syn-00003→rejected",
     "capabilities": [
       "memory"
     ],
@@ -565,7 +565,7 @@
     "transaction_id": "txn-review-ring",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-ring-01, txn-ring-02, txn-ring-03, txn-syn-00095",
+    "detail": "txn-ring-01, txn-ring-03, txn-ring-02, txn-syn-00033",
     "capabilities": [
       "hybrid",
       "vector",
@@ -585,7 +585,7 @@
     "transaction_id": "txn-review-ring",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-ring-01→rejected, txn-ring-02→rejected",
+    "detail": "txn-ring-01→rejected, txn-ring-03→rejected",
     "capabilities": [
       "memory"
     ],
