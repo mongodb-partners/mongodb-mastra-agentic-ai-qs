@@ -310,6 +310,12 @@ try { var q = new URLSearchParams(location.search).get('ui');
     /* The Approve / Reject gate is the one tap target the whole interactive demo turns on.
        .btn is 32px by default, so it needs sizing here too — #top .btn above does not cover it. */
     :root:not([data-ui="classic"]) .actions .btn { min-height:44px; padding:12px 14px; flex:1; }
+    /* .verdict is display:flex; justify-content:space-between, so on a 440px screen .actions is
+       capped at 205px — flex:1 above then splits that into two 98px buttons, narrower than the
+       102px "✓ Approve" needs, and the label breaks onto two lines. Let the banner wrap and give
+       .actions the whole row, so flex:1 yields two equal 170px one-line thumb targets. */
+    :root:not([data-ui="classic"]) .verdict { flex-wrap:wrap; }
+    :root:not([data-ui="classic"]) .verdict .actions { flex:1 0 100%; }
     :root:not([data-ui="classic"]) #themeBtn { min-width:44px; justify-content:center; }
     :root:not([data-ui="classic"]) #themeBtn .tlbl { display:none; }
     /* icon-only utility buttons so the bar stays two rows even at 375px. title= keeps the label. */
