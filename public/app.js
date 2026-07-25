@@ -692,7 +692,7 @@ function applyTheme(t) {
   // The control names its DESTINATION, not its current state: in dark mode it reads "☀ Light".
   // A presenter scanning the top bar for the words "light mode" then finds them.
   const toLight = t !== 'light';
-  b.querySelector('.ticon').textContent = toLight ? '☀' : '☾';
+  b.querySelector('.ticon').textContent = toLight ? '\u2600' : '\u263e';
   b.querySelector('.tlbl').textContent = toLight ? 'Light' : 'Dark';
   b.setAttribute('title', `Switch to ${toLight ? 'light' : 'dark'} mode (L)`);
   b.setAttribute('aria-label', `Switch to ${toLight ? 'light' : 'dark'} mode`);
