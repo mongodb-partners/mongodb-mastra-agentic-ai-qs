@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { basename, dirname, join } from 'node:path';
 import { MongoClient, BSON } from 'mongodb';
 import { DEV_AUDIT_SECRET, loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
@@ -35,7 +35,7 @@ const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rep
  * Aborts rather than exporting a chain that verifies under neither key, since that is real tampering
  * and an artifact carrying it would be restored onto every box.
  */
-function normalizeAudit(docs: any[], secret: string): any[] {
+export function normalizeAudit(docs: any[], secret: string): any[] {
   if (!docs.length || secret === DEV_AUDIT_SECRET) return docs;
   const out = resignRecords(docs as any, secret, DEV_AUDIT_SECRET);
   if (!out) {
@@ -48,6 +48,37 @@ function normalizeAudit(docs: any[], secret: string): any[] {
   return out as any[];
 }
 
+export interface StagedFile { path: string; json: string; count: number }
+
+/**
+ * Read + normalize + serialize all four collections, returning what SHOULD be written — without
+ * writing any of it.
+ *
+ * READ AND VALIDATE EVERYTHING BEFORE WRITING ANYTHING. The four files are one artifact: a restore
+ * loads all of them, and the audit chain's hashes only mean anything next to the events they
+ * describe. normalizeAudit() can throw, and `replay_audit` is LAST in REPLAY_COLLECTIONS, so the
+ * write-as-you-go loop this replaces left the other three files already overwritten from the cluster
+ * while replay_audit kept its committed content — a torn recording that still looks like a clean
+ * checkout to anyone who reads only the error. Observed while exercising the abort path against a
+ * scratch cluster: `git status` showed three modified files after a run that exited 1.
+ *
+ * Separated from the writing so the all-or-nothing property is testable without a database: `load`
+ * is the only I/O and the caller writes only if this returns.
+ */
+export async function stageExport(
+  load: (collection: string) => Promise<any[]>, secret: string, outDir = OUT_DIR,
+): Promise<StagedFile[]> {
+  const staged: StagedFile[] = [];
+  for (const dst of Object.values(REPLAY_COLLECTIONS)) {
+    let docs = await load(dst);
+    if (dst === REPLAY_COLLECTIONS.audit_trail) docs = normalizeAudit(docs, secret);
+    // EJSON (relaxed=false) preserves ObjectId/Date types exactly for a clean restore.
+    staged.push({ path: join(outDir, `${dst}.json`), count: docs.length,
+                  json: BSON.EJSON.stringify(docs, undefined, 2, { relaxed: false }) });
+  }
+  return staged;
+}
+
 async function main() {
   try { process.loadEnvFile(); } catch { /* .env optional */ }
   const cfg = loadConfig();
@@ -56,19 +87,20 @@ async function main() {
   const db = client.db(cfg.mongoDb);
   mkdirSync(OUT_DIR, { recursive: true });
 
-  const summary: Record<string, number> = {};
-  let total = 0;
-  for (const dst of Object.values(REPLAY_COLLECTIONS)) {
-    let docs = await db.collection(dst).find({}).sort({ _id: 1 }).toArray();
-    if (dst === REPLAY_COLLECTIONS.audit_trail) docs = normalizeAudit(docs, cfg.auditSecret);
-    // EJSON (relaxed=false) preserves ObjectId/Date types exactly for a clean restore.
-    writeFileSync(join(OUT_DIR, `${dst}.json`), BSON.EJSON.stringify(docs, undefined, 2, { relaxed: false }));
-    summary[dst] = docs.length; total += docs.length;
-  }
+  const staged = await stageExport(
+    dst => db.collection(dst).find({}).sort({ _id: 1 }).toArray(), cfg.auditSecret);
+  for (const f of staged) writeFileSync(f.path, f.json);
+
+  const summary = Object.fromEntries(staged.map(f => [basename(f.path, '.json'), f.count]));
   logger.info('exported demo recording to data/replay/', summary);
-  if (!total) logger.warn('recording is EMPTY — run `pnpm bake` before exporting');
+  if (!staged.some(f => f.count)) logger.warn('recording is EMPTY — run `pnpm bake` before exporting');
 
   await client.close();
 }
 
-main().then(() => process.exit(0)).catch(err => { logger.error('export-replay failed', { err: String(err) }); process.exit(1); });
+// Only run when executed as a script. Without this guard, importing anything from this module — as
+// export-replay.test.ts does — would connect to whatever cluster the ambient env points at and
+// overwrite data/replay/ as a side effect of collecting the test file.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().then(() => process.exit(0)).catch(err => { logger.error('export-replay failed', { err: String(err) }); process.exit(1); });
+}
