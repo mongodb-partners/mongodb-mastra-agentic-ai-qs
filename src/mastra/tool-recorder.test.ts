@@ -128,10 +128,18 @@ describe('ToolCallRecorder', () => {
     const [a, b] = rec.drain();
     expect(a.tool.args.query).toBe('a');
     expect(b.tool.args.query).toBe('b');
+    // Both must be non-zero: under the old name-keyed map, B's start was overwritten by A's and
+    // then deleted by A's after(), so B measured 0ms. That is the regression this guards.
     expect(a.tool.ms).toBeGreaterThan(0);
     expect(b.tool.ms).toBeGreaterThan(0);
-    // A started first and finished first, so it must be the shorter of the two.
-    expect(b.tool.ms).toBeGreaterThan(a.tool.ms);
+    // Each duration must reflect its OWN span (~24ms here: two sleeps each), not the other's and not
+    // the whole interleaved window (~36ms). Deliberately NOT asserting a.ms < b.ms — A covers sleeps
+    // 1-2 and B covers sleeps 2-3, so their nominal spans are equal and any ordering assertion is
+    // decided by timer jitter. That version failed as "expected 27 to be greater than 28".
+    for (const ms of [a.tool.ms, b.tool.ms]) {
+      expect(ms).toBeGreaterThanOrEqual(18);
+      expect(ms).toBeLessThan(36);
+    }
   });
 
   it('does not throw when a call input is not an object, and still records the call', async () => {
