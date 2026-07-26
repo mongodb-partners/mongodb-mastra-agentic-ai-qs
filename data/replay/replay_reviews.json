@@ -1,19 +1,18 @@
 [
   {
     "_id": {
-      "$oid": "6a55011ef86faddf8520e941"
+      "$oid": "6a65ff90ed471c423d4570ba"
     },
     "transaction_id": "txn-review-high",
     "created_at": {
       "$date": {
-        "$numberLong": "1783955742714"
+        "$numberLong": "1785069456692"
       }
     },
-    "evidence_hash": "87513aaf06e4911b3d868f48cb00d9acb064638506c8b909082d1521da411cc3",
+    "evidence_hash": "4333a813ec315ffe17f0d1ccbd14994549a75f7aea6c717b2bfa59cc00b4efa2",
     "flag_reason": "high_value_approval",
     "rules_triggered": [
-      "high_value_approval",
-      "low_confidence"
+      "high_value_approval"
     ],
     "snapshot": {
       "transaction_id": "txn-review-high",
@@ -22,8 +21,7 @@
         "$numberInt": "75000"
       },
       "risk_factors": [
-        "high_value_approval",
-        "low_confidence"
+        "high_value_approval"
       ],
       "compliance_score": {
         "$numberDouble": "0.85"
@@ -33,24 +31,25 @@
   },
   {
     "_id": {
-      "$oid": "6a550139f86faddf8520e947"
+      "$oid": "6a65ffa5ed471c423d4570bf"
     },
     "transaction_id": "txn-review-struct",
     "created_at": {
       "$date": {
-        "$numberLong": "1783955769045"
+        "$numberLong": "1785069477977"
       }
     },
-    "evidence_hash": "e6ee67f60e063ec4e78f08caffcf50f407a885e49749e5b32cc71aeb387e177e",
-    "flag_reason": "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+    "evidence_hash": "0e327042d968ad45e5acdaf81dd7952104f8852fc1cb38670392eff9dbd5f6c7",
+    "flag_reason": "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
     "rules_triggered": [
-      "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
-      "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
-      "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
-      "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
-      "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+      "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
+      "Transaction is the third in a series of sub-threshold deposits within a short period, consistent with reported precedent cases",
+      "Five highly similar precedent transactions (txn-syn-00016, txn-syn-00024, txn-syn-00039, txn-syn-00042, txn-syn-00047) all flagged as structuring and escalated",
+      "Structuring is a federal offense under 31 U.S.C. § 5324 regardless of the underlying source of funds",
+      "Sender account_number not provided, limiting tracing scope",
       "structuring_amount",
-      "fraud_ring_suspicious"
+      "fraud_ring_suspicious",
+      "agent_requested_escalation"
     ],
     "snapshot": {
       "transaction_id": "txn-review-struct",
@@ -59,13 +58,14 @@
         "$numberInt": "4950"
       },
       "risk_factors": [
-        "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
-        "Pattern of multiple sub-threshold deposits in short succession (third deposit this week noted in precedent)",
-        "Structuring is a federal crime under 31 U.S.C. § 5324, regardless of underlying source-of-funds legality",
-        "Prior identical case (txn-struct-01) with same amount ($4,950) and pattern (third deposit this week) was rejected",
-        "Four out of five recent precedents with similar structuring patterns were rejected; one escalated due to higher deposit count",
+        "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
+        "Transaction is the third in a series of sub-threshold deposits within a short period, consistent with reported precedent cases",
+        "Five highly similar precedent transactions (txn-syn-00016, txn-syn-00024, txn-syn-00039, txn-syn-00042, txn-syn-00047) all flagged as structuring and escalated",
+        "Structuring is a federal offense under 31 U.S.C. § 5324 regardless of the underlying source of funds",
+        "Sender account_number not provided, limiting tracing scope",
         "structuring_amount",
-        "fraud_ring_suspicious"
+        "fraud_ring_suspicious",
+        "agent_requested_escalation"
       ],
       "compliance_score": {
         "$numberDouble": "0.75"
@@ -75,24 +75,25 @@
   },
   {
     "_id": {
-      "$oid": "6a55019bf86faddf8520e94f"
+      "$oid": "6a65ffc1ed471c423d4570c6"
     },
     "transaction_id": "txn-review-ring",
     "created_at": {
       "$date": {
-        "$numberLong": "1783955867219"
+        "$numberLong": "1785069505827"
       }
     },
-    "evidence_hash": "8e3abe2906901e8d08ce8dbc14131f996627cb6863e1f2c6a73eb4ed2e1dd47a",
-    "flag_reason": "Sender account suspected mule network per user brief",
+    "evidence_hash": "9a3a3ab11a18eb13bb6fa2d1edec5d88c3beeb47510221687d2a4f0f7b243a01",
+    "flag_reason": "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
     "rules_triggered": [
-      "Sender account suspected mule network per user brief",
-      "Fund trace returned zero network size—possible lookup failure or account masking",
-      "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
-      "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
-      "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+      "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
+      "Amount ($900 USD) falls within range of other mule-ring layering transactions that were escalated or rejected",
+      "Circular-flow pattern explicitly mentioned in transaction description aligns with known layering schemes",
+      "Vertex Holdings recipient is an unknown entity with no prior transaction history in database",
+      "Fund-trace account-level analysis incomplete or account not queryable as individual entity",
       "fraud_ring_suspicious",
-      "low_confidence"
+      "low_confidence",
+      "agent_requested_escalation"
     ],
     "snapshot": {
       "transaction_id": "txn-review-ring",
@@ -101,13 +102,14 @@
         "$numberInt": "900"
       },
       "risk_factors": [
-        "Sender account suspected mule network per user brief",
-        "Fund trace returned zero network size—possible lookup failure or account masking",
-        "Precedent cases involving similar amounts ($683-$1,251 USD) in confirmed ring/circular networks rejected (txn-syn-00196, txn-syn-00539, txn-syn-00660, txn-syn-00665, txn-syn-00429)",
-        "One precedent at similar amount ($975 USD) was escalated rather than rejected (txn-syn-01187), indicating discretionary review warranted",
-        "Transaction amount just under $1,000 threshold consistent with structuring/layering tactics",
+        "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
+        "Amount ($900 USD) falls within range of other mule-ring layering transactions that were escalated or rejected",
+        "Circular-flow pattern explicitly mentioned in transaction description aligns with known layering schemes",
+        "Vertex Holdings recipient is an unknown entity with no prior transaction history in database",
+        "Fund-trace account-level analysis incomplete or account not queryable as individual entity",
         "fraud_ring_suspicious",
-        "low_confidence"
+        "low_confidence",
+        "agent_requested_escalation"
       ],
       "compliance_score": {
         "$numberDouble": "0.75"

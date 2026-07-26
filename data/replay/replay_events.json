@@ -1,8 +1,9 @@
 [
   {
     "_id": {
-      "$oid": "6a550108adbafdcee0d1d86b"
+      "$oid": "6a65ff7bfd4c0365c972953a"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "triage",
     "headline": "Investigating txn-review-high",
@@ -10,18 +11,19 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955720106"
+        "$numberLong": "1785069435393"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55010aadbafdcee0d1d86c"
+      "$oid": "6a65ff7dfd4c0365c972953b"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-high-01, txn-syn-00037, txn-syn-00002, txn-syn-00022",
+    "detail": "txn-high-01, txn-syn-11600, txn-syn-09687, txn-syn-10140",
     "capabilities": [
       "hybrid",
       "vector",
@@ -30,47 +32,124 @@
     "capability": "hybrid",
     "ts": {
       "$date": {
-        "$numberLong": "1783955720464"
+        "$numberLong": "1785069437368"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55010aadbafdcee0d1d86d"
+      "$oid": "6a65ff7dfd4c0365c972953c"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-high-01→approved, txn-syn-00037→escalated",
+    "detail": "txn-high-01→approved, txn-syn-11600→approved",
     "capabilities": [
       "memory"
     ],
     "capability": "memory",
     "ts": {
       "$date": {
-        "$numberLong": "1783955720469"
+        "$numberLong": "1785069437374"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550118adbafdcee0d1d86e"
+      "$oid": "6a65ff8dfd4c0365c972953d"
     },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-high",
+    "step": "tool",
+    "headline": "trace_funds → 0 hops",
+    "detail": "circular_flow=false layering=false",
+    "capabilities": [
+      "graph"
+    ],
+    "capability": "graph",
+    "tool": {
+      "name": "trace_funds",
+      "op": "$graphLookup",
+      "ms": {
+        "$numberInt": "22"
+      },
+      "ok": true,
+      "args": {
+        "account_id": "Northwind Foods",
+        "max_depth": {
+          "$numberInt": "3"
+        }
+      },
+      "result_count": {
+        "$numberInt": "0"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069449797"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ff8dfd4c0365c972953e"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-high",
+    "step": "tool",
+    "headline": "hybrid_search → 5 results",
+    "detail": "txn-high-01, txn-syn-09687, txn-syn-11600, txn-syn-10140",
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext"
+    ],
+    "capability": "hybrid",
+    "tool": {
+      "name": "hybrid_search",
+      "op": "$rankFusion",
+      "ms": {
+        "$numberInt": "443"
+      },
+      "ok": true,
+      "args": {
+        "query": "high-value wire established counterparty bulk shipment Northwind Foods Pacific Logistics",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069450218"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ff8dfd4c0365c972953f"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "reason",
-    "headline": "Agent: approve · confidence 85",
+    "headline": "Agent: approve · confidence 92",
     "detail": null,
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955726186"
+        "$numberLong": "1785069453451"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55011aadbafdcee0d1d86f"
+      "$oid": "6a65ff8dfd4c0365c9729540"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "graph",
     "capabilities": [
@@ -81,14 +160,15 @@
     "capability": "graph",
     "ts": {
       "$date": {
-        "$numberLong": "1783955726196"
+        "$numberLong": "1785069453525"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55011eadbafdcee0d1d870"
+      "$oid": "6a65ff90fd4c0365c9729541"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "govern",
     "headline": "Policy score 0.85",
@@ -99,14 +179,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727529"
+        "$numberLong": "1785069456686"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55011fadbafdcee0d1d871"
+      "$oid": "6a65ff90fd4c0365c9729542"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-high",
     "step": "suspend",
     "capabilities": [
@@ -118,14 +199,15 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727551"
+        "$numberLong": "1785069456761"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550120adbafdcee0d1d872"
+      "$oid": "6a65ff90fd4c0365c9729543"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-sanctions",
     "step": "triage",
     "headline": "Investigating txn-review-sanctions",
@@ -133,14 +215,15 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955727556"
+        "$numberLong": "1785069456766"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550120adbafdcee0d1d873"
+      "$oid": "6a65ff90fd4c0365c9729544"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-sanctions",
     "step": "govern",
     "headline": "Hard compliance: sanctions_screening_hit",
@@ -151,14 +234,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727560"
+        "$numberLong": "1785069456769"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550122adbafdcee0d1d875"
+      "$oid": "6a65ff90fd4c0365c9729546"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-sanctions",
     "step": "commit",
     "capabilities": [
@@ -170,14 +254,15 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727598"
+        "$numberLong": "1785069456826"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550122adbafdcee0d1d876"
+      "$oid": "6a65ff90fd4c0365c9729547"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "triage",
     "headline": "Investigating txn-review-struct",
@@ -185,18 +270,19 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955727603"
+        "$numberLong": "1785069456831"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550124adbafdcee0d1d877"
+      "$oid": "6a65ff91fd4c0365c9729548"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-struct-01, txn-syn-00024, txn-syn-00042, txn-syn-00016",
+    "detail": "txn-struct-01, txn-struct-02, txn-syn-00016, txn-syn-00024",
     "capabilities": [
       "hybrid",
       "vector",
@@ -205,47 +291,124 @@
     "capability": "hybrid",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727776"
+        "$numberLong": "1785069457621"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550124adbafdcee0d1d878"
+      "$oid": "6a65ff91fd4c0365c9729549"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-struct-01→rejected, txn-syn-00024→escalated",
+    "detail": "txn-struct-01→rejected, txn-struct-02→escalated",
     "capabilities": [
       "memory"
     ],
     "capability": "memory",
     "ts": {
       "$date": {
-        "$numberLong": "1783955727781"
+        "$numberLong": "1785069457628"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55012fadbafdcee0d1d879"
+      "$oid": "6a65ffa3fd4c0365c972954a"
     },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-struct",
+    "step": "tool",
+    "headline": "trace_funds → 0 hops",
+    "detail": "circular_flow=false layering=false",
+    "capabilities": [
+      "graph"
+    ],
+    "capability": "graph",
+    "tool": {
+      "name": "trace_funds",
+      "op": "$graphLookup",
+      "ms": {
+        "$numberInt": "24"
+      },
+      "ok": true,
+      "args": {
+        "account_id": "unknown",
+        "max_depth": {
+          "$numberInt": "3"
+        }
+      },
+      "result_count": {
+        "$numberInt": "0"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069459445"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffa3fd4c0365c972954b"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-struct",
+    "step": "tool",
+    "headline": "hybrid_search → 5 results",
+    "detail": "txn-syn-00016, txn-syn-00024, txn-syn-00039, txn-syn-00042",
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext"
+    ],
+    "capability": "hybrid",
+    "tool": {
+      "name": "hybrid_search",
+      "op": "$rankFusion",
+      "ms": {
+        "$numberInt": "447"
+      },
+      "ok": true,
+      "args": {
+        "query": "structuring deposits just under reporting threshold 5000 USD multiple sequential deposits",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069459868"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffa3fd4c0365c972954c"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "reason",
-    "headline": "Agent: reject · confidence 95",
-    "detail": "Deposit amount of $4,950 is intentionally structured just below the $5,000 CTR (Currency Transaction Report) reporting threshold",
+    "headline": "Agent: escalate · confidence 92",
+    "detail": "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955734908"
+        "$numberLong": "1785069475508"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550131adbafdcee0d1d87a"
+      "$oid": "6a65ffa3fd4c0365c972954d"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "graph",
     "capabilities": [
@@ -256,14 +419,15 @@
     "capability": "graph",
     "ts": {
       "$date": {
-        "$numberLong": "1783955734921"
+        "$numberLong": "1785069475551"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550138adbafdcee0d1d87b"
+      "$oid": "6a65ffa5fd4c0365c972954e"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "govern",
     "headline": "Policy score 0.75",
@@ -274,14 +438,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955736381"
+        "$numberLong": "1785069477971"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550139adbafdcee0d1d87c"
+      "$oid": "6a65ffa5fd4c0365c972954f"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-struct",
     "step": "suspend",
     "capabilities": [
@@ -293,14 +458,15 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955736402"
+        "$numberLong": "1785069477999"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55013aadbafdcee0d1d87d"
+      "$oid": "6a65ffa6fd4c0365c9729550"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "triage",
     "headline": "Investigating txn-review-clean",
@@ -308,18 +474,19 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955736407"
+        "$numberLong": "1785069478008"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55013badbafdcee0d1d87e"
+      "$oid": "6a65ffa6fd4c0365c9729551"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-clean-01, txn-syn-00023, txn-syn-00004, txn-syn-00046",
+    "detail": "txn-clean-01, txn-syn-07456, txn-syn-00750, txn-syn-02083",
     "capabilities": [
       "hybrid",
       "vector",
@@ -328,32 +495,108 @@
     "capability": "hybrid",
     "ts": {
       "$date": {
-        "$numberLong": "1783955736584"
+        "$numberLong": "1785069478913"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55013cadbafdcee0d1d87f"
+      "$oid": "6a65ffa6fd4c0365c9729552"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-clean-01→approved, txn-syn-00023→approved",
+    "detail": "txn-clean-01→approved, txn-syn-07456→approved",
     "capabilities": [
       "memory"
     ],
     "capability": "memory",
     "ts": {
       "$date": {
-        "$numberLong": "1783955736589"
+        "$numberLong": "1785069478918"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550144adbafdcee0d1d880"
+      "$oid": "6a65ffacfd4c0365c9729553"
     },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-clean",
+    "step": "tool",
+    "headline": "search_precedent → 5 results",
+    "detail": "txn-clean-01, txn-syn-08951, txn-syn-03778, txn-syn-08201",
+    "capabilities": [
+      "vector"
+    ],
+    "capability": "vector",
+    "tool": {
+      "name": "search_precedent",
+      "op": "$vectorSearch",
+      "ms": {
+        "$numberInt": "372"
+      },
+      "ok": true,
+      "args": {
+        "query": "payroll deposit long-tenured employee account",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069481358"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffacfd4c0365c9729554"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-clean",
+    "step": "tool",
+    "headline": "hybrid_search → 5 results",
+    "detail": "txn-clean-01, txn-syn-00204, txn-syn-00023, txn-syn-00046",
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext"
+    ],
+    "capability": "hybrid",
+    "tool": {
+      "name": "hybrid_search",
+      "op": "$rankFusion",
+      "ms": {
+        "$numberInt": "379"
+      },
+      "ok": true,
+      "args": {
+        "query": "recurring payroll credit employee account legitimate",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069481365"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffacfd4c0365c9729555"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "reason",
     "headline": "Agent: approve · confidence 95",
@@ -361,14 +604,15 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955752562"
+        "$numberLong": "1785069484195"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550145adbafdcee0d1d881"
+      "$oid": "6a65ffacfd4c0365c9729556"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "graph",
     "capabilities": [
@@ -379,14 +623,15 @@
     "capability": "graph",
     "ts": {
       "$date": {
-        "$numberLong": "1783955752571"
+        "$numberLong": "1785069484270"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550148adbafdcee0d1d882"
+      "$oid": "6a65ffadfd4c0365c9729557"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "govern",
     "headline": "Policy score 1",
@@ -397,14 +642,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955753467"
+        "$numberLong": "1785069485474"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55014aadbafdcee0d1d884"
+      "$oid": "6a65ffadfd4c0365c9729559"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-clean",
     "step": "commit",
     "capabilities": [
@@ -416,14 +662,15 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955753496"
+        "$numberLong": "1785069485503"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55014aadbafdcee0d1d885"
+      "$oid": "6a65ffadfd4c0365c972955a"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "triage",
     "headline": "Investigating txn-review-reject",
@@ -431,18 +678,19 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955753501"
+        "$numberLong": "1785069485508"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55014cadbafdcee0d1d886"
+      "$oid": "6a65ffaefd4c0365c972955b"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-reject-01, txn-syn-00003, txn-syn-00020, txn-syn-00044",
+    "detail": "txn-reject-01, txn-syn-00482, txn-syn-00249, txn-syn-00003",
     "capabilities": [
       "hybrid",
       "vector",
@@ -451,47 +699,124 @@
     "capability": "hybrid",
     "ts": {
       "$date": {
-        "$numberLong": "1783955753629"
+        "$numberLong": "1785069486224"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55014cadbafdcee0d1d887"
+      "$oid": "6a65ffaefd4c0365c972955c"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
-    "detail": "txn-reject-01→rejected, txn-syn-00003→rejected",
+    "detail": "txn-reject-01→rejected, txn-syn-00482→rejected",
     "capabilities": [
       "memory"
     ],
     "capability": "memory",
     "ts": {
       "$date": {
-        "$numberLong": "1783955753635"
+        "$numberLong": "1785069486230"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550157adbafdcee0d1d888"
+      "$oid": "6a65ffb4fd4c0365c972955d"
     },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-reject",
+    "step": "tool",
+    "headline": "recall_verdicts → 5 results",
+    "detail": "txn-reject-01, txn-syn-05698, txn-syn-10653, txn-syn-03507",
+    "capabilities": [
+      "memory"
+    ],
+    "capability": "memory",
+    "tool": {
+      "name": "recall_verdicts",
+      "op": "$vectorSearch",
+      "ms": {
+        "$numberInt": "284"
+      },
+      "ok": true,
+      "args": {
+        "query": "card-not-present overseas merchant unusual login account takeover",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069488365"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffb4fd4c0365c972955e"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-reject",
+    "step": "tool",
+    "headline": "hybrid_search → 5 results",
+    "detail": "txn-syn-00070, txn-reject-01, txn-syn-04195, txn-syn-00003",
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext"
+    ],
+    "capability": "hybrid",
+    "tool": {
+      "name": "hybrid_search",
+      "op": "$rankFusion",
+      "ms": {
+        "$numberInt": "292"
+      },
+      "ok": true,
+      "args": {
+        "query": "card-not-present charge overseas merchant account takeover fraud",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069488373"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffb4fd4c0365c972955f"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "reason",
-    "headline": "Agent: reject · confidence 98",
-    "detail": "Card-not-present charge to unrecognized overseas merchant",
+    "headline": "Agent: reject · confidence 96",
+    "detail": "Card-not-present charge to unrecognized merchant immediately post unusual login—direct match to confirmed account takeover pattern in txn-reject-01 and three other precedents",
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955759187"
+        "$numberLong": "1785069492856"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550158adbafdcee0d1d889"
+      "$oid": "6a65ffb4fd4c0365c9729560"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "graph",
     "capabilities": [
@@ -502,14 +827,15 @@
     "capability": "graph",
     "ts": {
       "$date": {
-        "$numberLong": "1783955759194"
+        "$numberLong": "1785069492898"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55017cadbafdcee0d1d88a"
+      "$oid": "6a65ffb7fd4c0365c9729561"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "govern",
     "headline": "Policy score 0.75",
@@ -520,14 +846,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955760356"
+        "$numberLong": "1785069495834"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55017eadbafdcee0d1d88c"
+      "$oid": "6a65ffb7fd4c0365c9729563"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-reject",
     "step": "commit",
     "capabilities": [
@@ -539,14 +866,15 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955760385"
+        "$numberLong": "1785069495859"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55017eadbafdcee0d1d88d"
+      "$oid": "6a65ffb7fd4c0365c9729564"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "triage",
     "headline": "Investigating txn-review-ring",
@@ -554,18 +882,19 @@
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955760391"
+        "$numberLong": "1785069495864"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550180adbafdcee0d1d88e"
+      "$oid": "6a65ffb8fd4c0365c9729565"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "retrieve",
     "headline": "4 precedents (hybrid search)",
-    "detail": "txn-ring-01, txn-ring-03, txn-ring-02, txn-syn-00033",
+    "detail": "txn-ring-01, txn-ring-03, txn-syn-06916, txn-ring-02",
     "capabilities": [
       "hybrid",
       "vector",
@@ -574,14 +903,15 @@
     "capability": "hybrid",
     "ts": {
       "$date": {
-        "$numberLong": "1783955760525"
+        "$numberLong": "1785069496488"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550180adbafdcee0d1d88f"
+      "$oid": "6a65ffb8fd4c0365c9729566"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "recall",
     "headline": "Recalled 2 prior verdict(s)",
@@ -592,29 +922,141 @@
     "capability": "memory",
     "ts": {
       "$date": {
-        "$numberLong": "1783955760530"
+        "$numberLong": "1785069496493"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550195adbafdcee0d1d890"
+      "$oid": "6a65ffc0fd4c0365c9729567"
     },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-ring",
+    "step": "tool",
+    "headline": "trace_funds → 0 hops",
+    "detail": "circular_flow=false layering=false",
+    "capabilities": [
+      "graph"
+    ],
+    "capability": "graph",
+    "tool": {
+      "name": "trace_funds",
+      "op": "$graphLookup",
+      "ms": {
+        "$numberInt": "16"
+      },
+      "ok": true,
+      "args": {
+        "account_id": "Quartz Trading",
+        "max_depth": {
+          "$numberInt": "4"
+        }
+      },
+      "result_count": {
+        "$numberInt": "0"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069498503"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffc0fd4c0365c9729568"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-ring",
+    "step": "tool",
+    "headline": "recall_verdicts → 5 results",
+    "detail": "txn-syn-10529, txn-syn-10408, txn-syn-00898, txn-syn-07372",
+    "capabilities": [
+      "memory"
+    ],
+    "capability": "memory",
+    "tool": {
+      "name": "recall_verdicts",
+      "op": "$vectorSearch",
+      "ms": {
+        "$numberInt": "554"
+      },
+      "ok": true,
+      "args": {
+        "query": "mule network circular fund flows structuring",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069499042"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffc0fd4c0365c9729569"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
+    "transaction_id": "txn-review-ring",
+    "step": "tool",
+    "headline": "hybrid_search → 5 results",
+    "detail": "txn-ring-03, txn-syn-07108, txn-syn-00071, txn-syn-00074",
+    "capabilities": [
+      "hybrid",
+      "vector",
+      "fulltext"
+    ],
+    "capability": "hybrid",
+    "tool": {
+      "name": "hybrid_search",
+      "op": "$rankFusion",
+      "ms": {
+        "$numberInt": "564"
+      },
+      "ok": true,
+      "args": {
+        "query": "transfer mule network circular flows layering",
+        "k": {
+          "$numberInt": "5"
+        }
+      },
+      "result_count": {
+        "$numberInt": "5"
+      }
+    },
+    "ts": {
+      "$date": {
+        "$numberLong": "1785069499051"
+      }
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a65ffc0fd4c0365c972956a"
+    },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "reason",
-    "headline": "Agent: escalate · confidence 78",
-    "detail": "Sender account suspected mule network per user brief",
+    "headline": "Agent: escalate · confidence 75",
+    "detail": "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
     "capability": null,
     "ts": {
       "$date": {
-        "$numberLong": "1783955767158"
+        "$numberLong": "1785069504301"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a550196adbafdcee0d1d891"
+      "$oid": "6a65ffc0fd4c0365c972956b"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "graph",
     "capabilities": [
@@ -625,14 +1067,15 @@
     "capability": "graph",
     "ts": {
       "$date": {
-        "$numberLong": "1783955767168"
+        "$numberLong": "1785069504360"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55019aadbafdcee0d1d892"
+      "$oid": "6a65ffc1fd4c0365c972956c"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "govern",
     "headline": "Policy score 0.75",
@@ -643,14 +1086,15 @@
     "capability": "governance",
     "ts": {
       "$date": {
-        "$numberLong": "1783955768427"
+        "$numberLong": "1785069505823"
       }
     }
   },
   {
     "_id": {
-      "$oid": "6a55019cadbafdcee0d1d893"
+      "$oid": "6a65ffc1fd4c0365c972956d"
     },
+    "run_id": "ms1s93hu-sg8t4v",
     "transaction_id": "txn-review-ring",
     "step": "suspend",
     "capabilities": [
@@ -662,7 +1106,7 @@
     "capability": "durable",
     "ts": {
       "$date": {
-        "$numberLong": "1783955768447"
+        "$numberLong": "1785069505844"
       }
     }
   }

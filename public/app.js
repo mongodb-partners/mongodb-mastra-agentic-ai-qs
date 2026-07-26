@@ -702,12 +702,14 @@ let replayState = null;
  * faster than the run it recorded. Timing is part of what this demo is showing, so it is now real.
  *
  * Two bounds, and nothing else, are applied to the recorded gaps:
- *   MIN — most gaps are now sub-frame. In the current recording 19 of 37 are 4–38 ms (retrieval,
- *         graph→govern bookkeeping, case handoffs), which would drop several events into the same
- *         paint and read as steps being skipped.
- *   MAX — the slowest recorded gap is a 16.0 s model call, which alone would be a third of the
+ *   MIN — most gaps are sub-frame. In the current recording (re-baked 2026-07-26 with tool events:
+ *         49 events, 48 gaps, 70.5 s span) 25 of 48 sit at or under 140 ms — p10 5 ms, p25 9 ms,
+ *         p50 75 ms — because each of the agent's own tool calls now lands as its own event and
+ *         several complete within one frame of the step around them. Without the floor those would
+ *         share a paint and read as steps being skipped.
+ *   MAX — the slowest recorded gap is a 15.6 s model call, which alone would be a fifth of the
  *         replay and read as a hang. Clamping keeps the shape truthful without letting the outlier
- *         become the experience. It bites 3 of 37 gaps.
+ *         become the experience. It bites 2 of 48 gaps.
  * TERMINAL_MIN is a readability floor, not pacing: the recorded gap after a verdict is ~5 ms (the
  * engine moves straight to the next case), nowhere near long enough to read the stamp.
  *
@@ -716,8 +718,13 @@ let replayState = null;
  * most of the run the recording is faster than the constants assume; re-tune rather than let the
  * floors become the pacing.
  *
+ * Re-judged against the 2026-07-26 re-bake and DELIBERATELY LEFT AT 140/6000/1600: sub-frame is
+ * 25/48 = 52% (threshold ≤75%) and clamped is 2/48 = 4% (≤25%), so both acceptance criteria already
+ * pass. Dropping MIN to 100 ms shortens the whole replay by 0.8 s — it buys nothing and costs the
+ * readability of the 11 new tool events, which are exactly the short gaps the floor is protecting.
+ *
  * `?speed=N` divides every dwell — for a booth loop that needs to fit a shorter window. Default 1
- * is true-to-recording (~48 s for the 6-case run).
+ * is true-to-recording (~66 s for the 6-case run).
  */
 const REPLAY_PACE = { MIN_MS: 140, MAX_MS: 6000, TERMINAL_MIN_MS: 1600 };
 
