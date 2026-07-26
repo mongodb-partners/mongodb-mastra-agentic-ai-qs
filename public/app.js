@@ -494,7 +494,9 @@ function addFeed(ico, actor, id, headline, step, detail) {
       <div>${esc(headline)} <span class="dim mono">${esc(id || '')}</span></div>
       ${detail ? `<div class="fdet">${esc(detail)}</div>` : ''}</div>`;
   feed.prepend(it);
-  while (feed.childElementCount > 60) feed.lastElementChild.remove();
+  // Matches FEED_LIMIT in src/server/routes.ts — the server backfills that many, so a smaller cap
+  // here would drop events it just sent. No build step means no shared constant; keep them in sync.
+  while (feed.childElementCount > 120) feed.lastElementChild.remove();
 }
 async function backfillFeed() {
   if ($('#feed').childElementCount) return;
