@@ -147,4 +147,21 @@ describe('checkReplayHealth — pacing staleness', () => {
     expect(health.recordingSpanMs).toBe(0);
     expect(health.ok).toBe(true);
   });
+
+  it('reports the sub-frame and total gap counts, not just a warning about them', async () => {
+    // Four events, three gaps: 10ms (sub-frame), 5000ms, 10ms (sub-frame).
+    const db = fakeDb({
+      events: [
+        { ts: new Date('2026-07-26T10:00:00.000Z'), step: 'triage' },
+        { ts: new Date('2026-07-26T10:00:00.010Z'), step: 'tool' },
+        { ts: new Date('2026-07-26T10:00:05.010Z'), step: 'reason' },
+        { ts: new Date('2026-07-26T10:00:05.020Z'), step: 'commit' },
+      ],
+      analyses: [],
+      corpus: [],
+    });
+    const r = await checkReplayHealth(db);
+    expect(r.totalGaps).toBe(3);
+    expect(r.subFrameGaps).toBe(2);
+  });
 });
