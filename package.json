@@ -9,6 +9,7 @@
     "dev": "tsx src/server/app.ts",
     "start": "tsx src/server/app.ts",
     "provision": "tsx scripts/provision-and-seed.ts",
+    "sync:corpus": "tsx scripts/sync-scale-corpus.ts",
     "seed": "tsx scripts/provision-and-seed.ts",
     "eval": "tsx scripts/eval.ts",
     "reembed": "tsx scripts/reembed-corpus.ts",
