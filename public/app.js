@@ -610,6 +610,10 @@ async function loadStats() {
     bits.push(`<span>F1 <b>${s.scorecard.f1Macro.toFixed(2)}</b></span>`);
   }
   $('#stats').innerHTML = bits.join('');
+  // #stats and #counters share one row and #stats does not shrink, so this render just changed the
+  // tally's entire budget — re-fit it. Matters most as the corpus grows mid-demo: "corpus 12,015"
+  // becoming "corpus 1,000,000" takes width straight out of the tally.
+  fitCounters();
 }
 
 // ---- write counters (live mode only — every tick is a real DB write) -----------
@@ -617,8 +621,71 @@ const counts = {};
 function bumpCounter(col) {
   if (DEMO_MODE) return; // demo replays don't write; showing counters would be theater
   counts[col] = (counts[col] || 0) + 1;
-  $('#counters').innerHTML = Object.entries(counts).map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('');
+  // ONE AGGREGATE, NOT A PER-COLLECTION LIST — because the list does not fit and never did. #stats
+  // alone claims 691px of the bar, leaving the tally 97px at 1440 and 15px at 1280, against an
+  // intrinsic 445px for seven collections. The overflow clip paints THROUGH a word rather than
+  // dropping whole spans: 1440 rendered the literal string "ager", half of "agent_events", which
+  // reads as a rendering fault. (flex-shrink:0 on the spans does not change this — the container's
+  // overflow:hidden clips the span mid-glyph instead of compressing it. Measured, not assumed.) The
+  // breakdown was never legible mid-run anyway; it churns every few hundred ms. It stays in the
+  // title attribute for anyone who wants it.
+  //
+  // The label carries the meaning the bare numbers could not: sitting unlabelled beside "F1 1.00" in
+  // identical styling, "agent_events 28" read as another Atlas statistic while contradicting the
+  // endpoint it appeared to come from (/api/stats reported agent_events 79 at the same moment).
+  // These are writes OBSERVED SINCE THIS PAGE LOADED — one tick per change-stream event — not
+  // cluster totals.
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const detail = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
+  const el = $('#counters');
+  el.dataset.detail = detail;
+  el.dataset.total = String(total);
+  fitCounters();
 }
+
+// Degrade the tally by MEASUREMENT, not by a hardcoded breakpoint, because its budget is only
+// "whatever #stats leaves over" — and #stats is about to get wider. The 1M-corpus work turns
+// "precedents 12,012" into "precedents 1,000,000"; a @media (1180-1599) rule tuned to today's 691px
+// #stats would go stale the day that lands and clip again with nothing to catch it. Measured budget
+// across the tiers as shipped: 86px at >=1600, 97px at 1440, 17px at 1360, 15px at 1280, and full
+// width at <=1179 where #bottom wraps and the tally gets its own row.
+//
+// Three states, widest first. The middle one exists because 1440 is the single most common demo
+// width and fits "writes 38" (85px) but not "writes this session" (176px). The last one exists
+// because at 1360 the budget collapses to 17px, where NO label and no number can render — and a
+// blank space is honest where a fragment is a bug report waiting to happen.
+const COUNTER_FITS = [
+  t => `<span class="lbl">writes this session</span><span><b>${t}</b></span>`,
+  t => `<span class="lbl">writes</span><span><b>${t}</b></span>`,
+];
+function fitCounters() {
+  const el = $('#counters');
+  const total = el.dataset.total;
+  if (!total) return; // nothing counted yet; loadStats() owns #stats, not this
+  for (const render of COUNTER_FITS) {
+    el.hidden = false;
+    el.innerHTML = render(total);
+    el.firstElementChild.title = el.dataset.detail;
+    el.lastElementChild.title = el.dataset.detail;
+    // 1px of slack: getBoundingClientRect widths are fractional and scrollWidth rounds up, so an
+    // exact-fit item reports wants === has + 1 (measured at every tier). Without the tolerance the
+    // widest form is rejected everywhere and the bar always shows the fallback.
+    if (el.scrollWidth <= el.clientWidth + 1) return;
+  }
+  // Neither form fits: show nothing rather than a fragment. [hidden] is why #counters:not(:empty)
+  // is not enough on its own — the element still has children here, so the divider would survive
+  // the element that justified it. See the display:none rule in index.html.
+  el.hidden = true;
+}
+// A resize crosses budget thresholds (86px at >=1600 → 17px at 1360), so the chosen form has to be
+// re-picked. matchMedia cannot do this one: the thresholds are where #stats happens to leave enough
+// room, not fixed widths. Trailing-edge debounce because fitCounters() forces layout up to twice per
+// call and a drag fires resize continuously.
+let fitTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(fitCounters, 120);
+});
 
 // ---- audit chip + stage banner --------------------------------------------------
 let bannerTimer = null;
