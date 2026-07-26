@@ -62,12 +62,16 @@ resource "mongodbatlas_database_user" "app" {
   depends_on = [mongodbatlas_advanced_cluster.cluster]
 }
 
-# Access list: the peered AWS VPC CIDR (private path used by the box) + the deploy machine /32
-# (so the laptop can provision + restore the recording over the public path). One resource per
-# CIDR (provider requirement) via for_each. depends_on the peering route so the private entry
-# only opens once the route exists.
+# Access list: the peered AWS VPC CIDR (private path used by the box), the deploy machine /32 (so the
+# laptop can provision + restore the recording over the public path), and the office/VPN ranges — the
+# same list that security.tf admits to the box, so a cluster is reachable from wherever its box is
+# administered from rather than from the laptop alone. One resource per CIDR (provider requirement)
+# via for_each. depends_on the peering route so the private entry only opens once the route exists.
+#
+# The access list only decides which SOURCES may open a connection; it grants no data access on its
+# own — a caller still needs a database user. Widening it does not widen anyone's privileges.
 resource "mongodbatlas_project_ip_access_list" "app" {
-  for_each   = local.use_atlas ? toset([var.vpc_cidr, var.admin_cidr]) : toset([])
+  for_each   = local.use_atlas ? toset(concat([var.vpc_cidr, var.admin_cidr], var.office_cidrs)) : toset([])
   project_id = local.project_id
   cidr_block = each.value
   comment    = "${var.name_prefix} (${each.value})"
