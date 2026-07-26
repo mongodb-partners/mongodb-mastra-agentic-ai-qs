@@ -219,6 +219,15 @@ try { var q = new URLSearchParams(location.search).get('ui');
   .policy { border-left:3px solid var(--warn); }
   .rationale { font-size:13px; color:var(--muted); line-height:1.6; border-left:3px solid var(--info); padding:2px 0 2px 12px; }
 
+  /* Ordered agent operations: tool name, the Atlas operator that served it, duration. Grid rather
+     than flex so the operator column aligns down the list and the row reads as a table. */
+  .ops { display:flex; flex-direction:column; gap:4px; }
+  .ops .op { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:9px; align-items:baseline;
+             font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; background:var(--shadow); }
+  .ops .op .opq { color:var(--mongo); font-size:11px; }
+  .ops .op .sub { color:var(--muted); font-size:10.5px; }
+  .ops .op.bad .opq { color:var(--crit); }
+
   /* threshold gauge (structuring cases — replaces a degenerate 1-node "network") */
   .gauge { margin:6px 0 2px; }
   .gauge .bar { position:relative; height:26px; border-radius:8px; background:var(--border); overflow:visible; }

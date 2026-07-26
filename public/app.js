@@ -437,10 +437,25 @@ function evidenceSections(a, { compact = false } = {}) {
     : (a.lane === 'structuring'
       ? `<div class="section"><div class="lbl">${icon('warn', 13)} Reporting-threshold proximity <span class="chip2">deterministic rule</span></div>${thresholdGauge(a.amount)}</div>`
       : '');
+  // The ordered operations the agent actually ran, with the Atlas operator each one used. Ordered by
+  // call, not by duration — the sequence is the reasoning. Compact (theater terminal) shows the
+  // first three; the full case detail shows all of them.
+  const calls = a.tool_calls || [];
+  const opsSection = calls.length
+    ? `<div class="section"><div class="lbl">${icon('tool', 13)} Agent operations <span class="chip2">${calls.length} tool call${calls.length > 1 ? 's' : ''}</span></div>
+        <div class="ops">${calls.slice(0, compact ? 3 : calls.length).map(c => `
+          <div class="op${c.ok === false ? ' bad' : ''}">
+            <b class="mono">${esc(c.name)}</b>
+            <span class="opq mono">${esc(c.op || '—')}</span>
+            <span class="sub">${Number.isFinite(c.ms) ? `${c.ms}ms` : ''}</span>
+          </div>`).join('')}</div>
+        ${compact && calls.length > 3 ? `<div class="sub dim">+${calls.length - 3} more</div>` : ''}</div>`
+    : '';
   return `
     <div class="section"><div class="lbl">${icon('memory', 13)} Similar precedent <span class="chip2">hybrid search</span></div>
       ${precedents || '<div class="sub dim">none</div>'}</div>
     ${graphSection}
+    ${opsSection}
     <div class="section"><div class="lbl">${icon('governance', 13)} Policy governance <span class="chip2">$vectorSearch on policies</span></div>
       <div class="row" style="margin-bottom:7px"><span class="sub">compliance score</span><b class="mono" style="color:${scoreColor}">${scorePct}%</b></div>
       <div class="meter"><i style="width:${scorePct}%;background:${scoreColor}"></i></div>
