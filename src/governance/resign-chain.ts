@@ -24,6 +24,31 @@ function eventOf(r: AuditRecord) {
   };
 }
 
+/**
+ * Re-sign an ordered chain IN MEMORY, returning new records. Pure — no database, no mutation of the
+ * input. Used by `resignAuditChain` (deploy-time rotation) and by `pnpm export:replay`, which has to
+ * normalize the artifact it writes without touching the cluster it read from.
+ *
+ * Returns null when the chain does not verify under `oldSecret`, i.e. the caller must not re-sign.
+ */
+export function resignRecords(
+  records: AuditRecord[], oldSecret: string, newSecret: string,
+): AuditRecord[] | null {
+  if (!verifyChain(oldSecret, records).ok) return null;
+  let prev = GENESIS_HASH;
+  return records.map(r => {
+    const current_hash = computeHash(newSecret, prev, eventOf(r));
+    const out = {
+      ...r,
+      previous_hash: prev,
+      current_hash,
+      hmac_key_version: (r.hmac_key_version ?? 1) + 1,
+    };
+    prev = current_hash;
+    return out;
+  });
+}
+
 export interface ResignResult {
   /** 'resigned' — keys differed and the chain was rewritten. */
   status: 'resigned' | 'already_valid' | 'empty' | 'tampered';

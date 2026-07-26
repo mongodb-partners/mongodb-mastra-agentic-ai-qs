@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resignAuditChain } from './resign-chain';
+import { resignAuditChain, resignRecords } from './resign-chain';
 import { buildAuditRecord, verifyChain, GENESIS_HASH, type AuditEvent, type AuditRecord } from './audit-chain';
 
 const OLD = 'marshal-dev-audit-secret';
@@ -107,5 +107,43 @@ describe('resignAuditChain', () => {
   it('reports an empty chain instead of failing', async () => {
     const { db } = fakeDb([]);
     expect(await resignAuditChain(db, 'replay_audit', OLD, NEW)).toEqual({ status: 'empty', records: 0 });
+  });
+});
+
+describe('resignRecords — what export:replay uses to normalize the committed artifact', () => {
+  it('rewrites a box-signed chain to the dev key so any box can restore it', () => {
+    // The regression this guards: a bake that ran ON a deployed box (forced, because that box's
+    // least-privilege user is the only one that can reach its scratch DB) exported a chain signed
+    // with THAT box's secret. restore:replay re-signs dev → deployment, so the artifact verified
+    // under neither key on the other track and the restore aborted as possible tampering.
+    const boxSigned = chain(NEW);
+    const out = resignRecords(boxSigned, NEW, OLD)!;
+
+    expect(verifyChain(OLD, out).ok).toBe(true);
+    expect(verifyChain(NEW, out).ok).toBe(false);
+    // …and the deploy-time re-sign then takes it back to whatever the target box runs with.
+    expect(verifyChain(NEW, resignRecords(out, OLD, NEW)!).ok).toBe(true);
+  });
+
+  it('never touches event content, and does not mutate its input', () => {
+    const input = chain(NEW);
+    // structuredClone, not JSON round-trip: `timestamp` is a Date and JSON would stringify it,
+    // making the purity check compare a string against a Date.
+    const before = structuredClone(input);
+    const out = resignRecords(input, NEW, OLD)!;
+
+    expect(input).toEqual(before);   // pure
+    for (let i = 0; i < out.length; i++) {
+      const { previous_hash: _p, current_hash: _c, hmac_key_version: _v, ...content } = out[i] as any;
+      const { previous_hash: _p2, current_hash: _c2, hmac_key_version: _v2, ...was } = before[i] as any;
+      expect(content).toEqual(was);
+    }
+    expect(out.map(r => r.hmac_key_version)).toEqual([2, 2, 2]);
+  });
+
+  it('returns null rather than laundering a chain that does not verify under the old key', () => {
+    const tampered = chain(NEW);
+    tampered[1].payload_summary = { fields: ['disposition'], disposition: 'approve' };
+    expect(resignRecords(tampered, NEW, OLD)).toBeNull();
   });
 });

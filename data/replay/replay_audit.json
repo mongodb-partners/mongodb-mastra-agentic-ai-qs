@@ -27,9 +27,9 @@
       }
     },
     "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-    "current_hash": "7437e983d77cff0d91141dcf687b09e6e38ddbc4f9cfce76536d894aa7946cc6",
+    "current_hash": "b3508e75f270c9b0dfa2bfb53bc156428f3bceeadf1adf8346e8da355bca4051",
     "hmac_key_version": {
-      "$numberInt": "1"
+      "$numberInt": "2"
     }
   },
   {
@@ -59,10 +59,10 @@
         "$numberLong": "1785069485481"
       }
     },
-    "previous_hash": "7437e983d77cff0d91141dcf687b09e6e38ddbc4f9cfce76536d894aa7946cc6",
-    "current_hash": "21a07dabbed06ed5e2caef27964dc23b0f6d252ae705b18eb930cb94ec81f569",
+    "previous_hash": "b3508e75f270c9b0dfa2bfb53bc156428f3bceeadf1adf8346e8da355bca4051",
+    "current_hash": "fa8947a2725e2d74f4e1b2238c2c5767ea6e74b9784353277829ae03bad24d43",
     "hmac_key_version": {
-      "$numberInt": "1"
+      "$numberInt": "2"
     }
   },
   {
@@ -92,10 +92,10 @@
         "$numberLong": "1785069495838"
       }
     },
-    "previous_hash": "21a07dabbed06ed5e2caef27964dc23b0f6d252ae705b18eb930cb94ec81f569",
-    "current_hash": "15c7a4b46ecd0678d3395ac1c04686463c16e92f44424b83849c79a397ef49a8",
+    "previous_hash": "fa8947a2725e2d74f4e1b2238c2c5767ea6e74b9784353277829ae03bad24d43",
+    "current_hash": "314a2ba4f0c2d54ea2509d79256091302bb67afee457039133c47478a1488b07",
     "hmac_key_version": {
-      "$numberInt": "1"
+      "$numberInt": "2"
     }
   }
 ]
