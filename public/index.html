@@ -250,6 +250,12 @@ try { var q = new URLSearchParams(location.search).get('ui');
 
   /* bottom bar: the payoff readout — real counts + the eval scorecard */
   #bottom { grid-area:bottom; display:flex; align-items:center; gap:16px; padding:0 18px; font-family:var(--mono); font-size:12px; overflow:hidden; }
+  /* Deliberately quieter than the surrounding numbers: this is attribution, not telemetry. The link
+     inherits the dim colour and only picks up the accent on hover, so it reads as a credit rather
+     than a call to action competing with Replay Investigation. */
+  #credit { font-size:10.5px; letter-spacing:.02em; white-space:nowrap; }
+  #credit a { color:inherit; text-decoration:none; border-bottom:1px solid var(--border); transition:color .2s,border-color .2s; }
+  #credit a:hover, #credit a:focus-visible { color:var(--mongo); border-bottom-color:var(--mongo); }
   #live { display:flex; align-items:center; gap:8px; flex-shrink:0; } #live .dot { width:9px;height:9px;border-radius:50%;background:var(--crit); }
   #live.on .dot { background:var(--mongo); box-shadow:0 0 9px var(--mongo); }
   #stats { display:flex; gap:14px; align-items:center; white-space:nowrap; }
@@ -313,12 +319,56 @@ try { var q = new URLSearchParams(location.search).get('ui');
   @media (max-width:1599px) and (min-width:1180px) {
     :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
   }
+  /* The pipeline flow wraps everywhere the hero is narrower than ~890px, and flex wrapping made it
+     ragged: each line divides its own free space, and the LAST line has one fewer `›` to pay for, so
+     its boxes come out wider than the ones above — measured 148/148/158 at 390px, 133 vs 180 at
+     1440px, and 122 vs 180 at 1600px, which is what reads as "GOVERN and DECIDE are misaligned". A
+     line that happened to break after an arrow also left it dangling at the row's end. So below the
+     width where all six fit on ONE row, lay the steps out on a grid: equal columns by construction,
+     however the rows break, and the arrows stop being layout participants.
+
+     The cutoff is 1800px, not the 1600px tier boundary. #wflow gets ~59% of the viewport, so six
+     120px steps plus five arrows need ~1800px of viewport before they fit a single line — measured
+     container widths: 690px at 1600, 790px at 1700, 890px at 1800 (first single row). Cutting at
+     1600 left the 1600-1799 band on the flex path still ragged, which is the band the reported
+     laptop screenshot came from. The stage contract is a 1920px contract (that is what
+     ui-matrix.mjs pins and what the podium rehearsed on) and is untouched by a rule that stops at
+     1799. */
+  @media (max-width:1799px) {
+    :root:not([data-ui="classic"]) .wflow { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px; align-items:stretch; }
+    /* Uncapped, the two columns stretch to 380px each at 1599px and the boxes read as banners rather
+       than pipeline steps. 620px caps them near 300px, the widest that still looks like a step.
+       `align-self` rather than `margin-inline:auto`, because #welcome is a column flex container: on
+       the cross axis a max-width'd item with auto margins shrink-to-fits (measured 385px instead of
+       620px), while align-self:center caps AND centres it. */
+    :root:not([data-ui="classic"]) .wflow { max-width:620px; width:100%; align-self:center; }
+    :root:not([data-ui="classic"]) .wflow .wstep { max-width:none; }
+    /* The arrows encoded "next step" in a single row. Once the flow is a wrapping grid that reading
+       is gone — an arrow at the end of row 1 points at a box below-left, not to its right. Drop them
+       rather than leave a decoration that now lies about the order; the steps stay numbered by
+       reading order, which is what the tour walks. */
+    :root:not([data-ui="classic"]) .wflow .warrow { display:none; }
+  }
+  @media (max-width:1179px) and (min-width:1024px) {
+    /* 1024-1179 fits three across comfortably: 2x3 instead of 3x2 keeps the boxes from going squat. */
+    :root:not([data-ui="classic"]) .wflow { grid-template-columns:repeat(3,minmax(0,1fr)); max-width:none; }
+  }
   @media (max-width:1179px) and (min-width:760px) {
     :root:not([data-ui="classic"]) #hud { grid-template-columns:minmax(0,1fr) 320px;
       grid-template-rows:58px 74px auto minmax(0,1fr) 40px;
       grid-template-areas:"top top" "rail rail" "left right" "center right" "bottom bottom"; }
     :root:not([data-ui="classic"]) #left > summary { cursor:pointer; min-height:44px; padding:14px 16px; }
     :root:not([data-ui="classic"]) #left .scroll { height:auto; max-height:34vh; }
+    /* The status bar is `nowrap; overflow:hidden` and #stats alone needs 633px of the 794px available
+       here, so everything after it falls off the right edge and is clipped. This is not new — the LIVE
+       Track B bundle (no #credit) already loses #auditChip at 820px: measured bar right edge 808,
+       chip left 839, 108px of overflow. The phone tier fixed this by wrapping; the tablet tier never
+       got the same treatment. Wrap it too and give the bar its natural height, so the audit chip and
+       the credit are both actually on screen. */
+    :root:not([data-ui="classic"]) #hud { grid-template-rows:58px 74px auto minmax(0,1fr) auto; }
+    :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:8px 14px; gap:6px 14px; }
+    :root:not([data-ui="classic"]) #stats { flex-wrap:wrap; white-space:normal; gap:6px 12px; }
   }
   @media (max-width:759px) {
     :root:not([data-ui="classic"]) body { overflow-y:auto; overflow-x:hidden; }
@@ -382,6 +432,10 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:10px 12px; gap:8px 14px; }
     :root:not([data-ui="classic"]) #stats { flex-wrap:wrap; white-space:normal; gap:8px 12px; }
     :root:not([data-ui="classic"]) #bottom > div[style*="flex:1"] { display:none; }
+    /* The spacer above is gone on this tier, so #credit would tuck in beside the audit chip and
+       compete with it. Give it the full width instead: it is the last thing in the bar and the last
+       thing on the page, which is exactly where a build credit belongs. */
+    :root:not([data-ui="classic"]) #credit { flex:1 0 100%; text-align:center; padding-top:2px; }
     /* This tier is the only one where <body> scrolls (overflow-y:auto above); every other tier
        pins the page to 100vh and scrolls inside the panels. So on this tier the panels must stop
        being scrollers, or a gesture that starts inside one is swallowed by it instead of moving
@@ -484,6 +538,11 @@ try { var q = new URLSearchParams(location.search).get('ui');
     <div id="counters"></div>
     <div style="flex:1"></div>
     <span id="auditChip" class="dim">audit ⋯</span>
+    <!-- Build credit. After #auditChip and after the flex spacer, so it sits at the far right of the
+         status bar and never competes with the live numbers for space; rel=noopener because
+         target=_blank without it hands the opener to the new tab. -->
+    <span id="credit" class="dim">Developed by <a href="https://www.linkedin.com/in/farooqimdd"
+      target="_blank" rel="noopener noreferrer">Mohammad Daoud Farooqi</a></span>
   </div>
 </div>
 <div id="banner" role="status"></div>
@@ -504,6 +563,6 @@ try { var q = new URLSearchParams(location.search).get('ui');
     <button class="btn launch" id="tourNext">Next ›</button>
   </div>
 </div>
-<script type="module" src="/app.js?v=16"></script>
+<script type="module" src="/app.js?v=17"></script>
 </body>
 </html>
