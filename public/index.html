@@ -86,6 +86,9 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #status { font-family:var(--mono); font-size:12px; color:var(--mongo); }
   #themeBtn { display:inline-flex; align-items:center; gap:6px; }
   #themeBtn .ticon { font-size:13px; line-height:1; }
+  #top #modeBtn { display:inline-flex; align-items:center; gap:6px; }
+  #top #modeBtn .micon { font-size:10px; }
+  #top #modeBtn.stepping { border-color:var(--warn); color:var(--warn); }
   .btn { font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--border);
          background:var(--shadow2); color:var(--ink); padding:8px 14px; border-radius:9px; cursor:pointer; transition:.15s; }
   .btn:hover { border-color:var(--muted); }
@@ -526,6 +529,8 @@ try { var q = new URLSearchParams(location.search).get('ui');
     <div style="flex:1"></div>
     <button class="btn" id="tourBtn" title="Guided tour">? Tour</button>
     <button class="btn" id="themeBtn" title="Toggle light / dark (L)" aria-keyshortcuts="l"><span class="ticon">☀</span><span class="tlbl">Light</span></button>
+    <button class="btn" id="modeBtn" hidden title="Play / step the replay (space)" aria-keyshortcuts="space"><span class="micon">▶</span><span class="mlbl">Playing</span></button>
+    <button class="btn" id="stepBtn" hidden title="Advance one event (→)" aria-keyshortcuts="ArrowRight">Step ›</button>
     <button class="btn" id="resetBtn">Reset</button>
     <button class="btn launch" id="launchBtn"></button>
   </div>

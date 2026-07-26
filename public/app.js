@@ -369,6 +369,9 @@ function theaterEvent(d) {
 function endRun() {
   if (!run.active) return;
   run.active = false;
+  clearTimeout(replayTimer);
+  replayState = null;
+  renderReplayControls();
   const b = $('#launchBtn'); b.disabled = false; renderLaunchLabel();
   const held = theater.done.filter(c => c.outcome === 'held').length;
   setStatus(held ? `Run complete: ${held} case${held > 1 ? 's' : ''} held for your decision` : 'Run complete');
@@ -489,9 +492,13 @@ async function openCase(id) {
   const myDecision = sessionResolved[id];
   const held = a.phase === 'suspended' && !myDecision;
 
+  const stepLink = DEMO_MODE
+    ? `<button class="btn" id="stepThisCase" style="margin-bottom:10px">▶ Step through this case</button>`
+    : '';
+
   // Verdict + gate FIRST (the money moment lives above the fold), rationale in the open,
   // then the evidence that produced it.
-  detail.innerHTML = `${backLink}
+  detail.innerHTML = `${backLink}${stepLink}
     <div class="dhead">
       <div><div class="amt">${money(a.amount)}</div><div class="id">${esc(id)} · ${esc(a.lane)}</div></div>
       <span class="pill ${held ? 'held' : esc(myDecision || dec.disposition)}">${held ? 'HELD FOR REVIEW' : esc(myDecision || dec.disposition || '')}</span>
@@ -518,6 +525,15 @@ async function openCase(id) {
     detail.querySelector('[data-approve]').onclick = () => resolve(id, 'approve');
     detail.querySelector('[data-reject]').onclick = () => resolve(id, 'reject');
   }
+  const stepBtn = detail.querySelector('#stepThisCase');
+  if (stepBtn) stepBtn.onclick = async () => {
+    clearTimeout(replayTimer);
+    replayMode = 'step';
+    run.active = true;
+    $('#launchBtn').disabled = true;
+    setStatus(`Stepping through ${id}`);
+    await runReplay(id);   // scoped: only this case's events, and theaterStart(id) is forced
+  };
   wireBackToRun();
 }
 function wireBackToRun() {
@@ -660,6 +676,19 @@ function connect() {
 let replayTimer = null;
 
 /**
+ * Step-through state. `replayMode` is the ONLY switch: in 'step' the tick renders its event and
+ * returns without arming the timer, so the presenter's Step action is the clock. Same tick, same
+ * rendering, same pacing code — a second stepping loop would drift from the auto-play one.
+ *
+ * Default 'play' is deliberate and load-bearing: an unattended booth box, and every ?ui=classic
+ * viewer, must behave exactly as it did before this existed.
+ */
+let replayMode = 'play';
+/** The live replay cursor. `order` is the index sequence tick() walks — the full recording, or one
+ *  case's slice when the presenter stepped in from a case. */
+let replayState = null;
+
+/**
  * Replay pacing, derived from the RECORDED `ts` deltas rather than a fixed dwell.
  *
  * The old code waited a flat 480 ms between every event (1600 ms after a verdict), which made the
@@ -710,7 +739,7 @@ function replaySpeed() {
   return Number.isFinite(v) && v > 0 ? Math.min(v, 20) : 1;
 }
 
-async function runReplay() {
+async function runReplay(scopeCaseId = null) {
   const { events = [], analyses = [] } = await fetch('/api/replay').then(r => r.json()).catch(() => ({}));
   if (!events.length) { setStatus('No baked replay found. Run `pnpm bake` first.'); endRun(); return; }
   // Choreography reset: rail + feed count only this run; every analyzed case visually returns
@@ -721,24 +750,64 @@ async function runReplay() {
   for (const a of analyses) { if (!sessionResolved[a.transaction_id]) queueOverlay[a.transaction_id] = 'pending'; }
   loadQueueRender();
   enterTheater();
-  const speed = replaySpeed();
-  let i = 0;
-  const tick = () => {
-    if (!run.active) return;
-    if (i >= events.length) { endRun(); return; }
-    const at = i++;
-    const d = events[at];
-    addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail);
-    (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
-    theaterEvent(d);
-    // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
-    // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
-    replayTimer = setTimeout(tick, replayDwellMs(events, at, speed));
-  };
-  tick();
+
+  // Case scoping: step only through ONE case's events, as a filtered index into the same array —
+  // not a second loop, so replayDwellMs still reads the real recorded gaps between them.
+  const order = events
+    .map((e, ix) => ix)
+    .filter(ix => !scopeCaseId || events[ix].transaction_id === scopeCaseId);
+  replayState = { events, order, at: 0, speed: replaySpeed(), scopeCaseId };
+  // Scoped stepping starts mid-recording, so the pipeline would otherwise inherit whatever boxes
+  // the previously-played case lit. theaterStart() resets theater.stages, so forcing it is enough.
+  if (scopeCaseId) theaterStart(scopeCaseId);
+  renderReplayControls();
+  replayTick();
+}
+
+/** Render one replay event and, in play mode, arm the next. Called by the timer OR by Step. */
+function replayTick() {
+  const st = replayState;
+  if (!run.active || !st) return;
+  if (st.at >= st.order.length) { endRun(); return; }
+  const ix = st.order[st.at++];
+  const d = st.events[ix];
+  addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail);
+  (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
+  theaterEvent(d);
+  renderReplayControls();
+  if (replayMode !== 'play') return;   // the presenter is the clock now
+  // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
+  // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
+  replayTimer = setTimeout(replayTick, replayDwellMs(st.events, ix, st.speed));
 }
 
 // ---- top-bar wiring ----------------------------------------------------------
+/** Show/label the replay controls for the current mode. Hidden outside an active replay. */
+function renderReplayControls() {
+  const mode = $('#modeBtn'); const step = $('#stepBtn');
+  if (!mode || !step) return;
+  const on = DEMO_MODE && run.active && !!replayState;
+  mode.hidden = !on; step.hidden = !on || replayMode !== 'step';
+  if (!on) return;
+  const stepping = replayMode === 'step';
+  mode.classList.toggle('stepping', stepping);
+  mode.querySelector('.micon').textContent = stepping ? '⏸' : '▶';
+  mode.querySelector('.mlbl').textContent = stepping ? 'Stepping' : 'Playing';
+  mode.setAttribute('aria-label', stepping ? 'Resume automatic playback' : 'Pause and step manually');
+  const left = replayState.order.length - replayState.at;
+  step.textContent = left > 0 ? `Step › ${left}` : 'Step ›';
+  step.disabled = left <= 0;
+}
+
+/** Switch between auto-play and manual stepping, re-arming from the CURRENT cursor either way. */
+function setReplayMode(next) {
+  replayMode = next;
+  clearTimeout(replayTimer);
+  renderReplayControls();
+  // Resuming play continues from wherever stepping left the cursor — the recording is not restarted.
+  if (next === 'play' && run.active && replayState) replayTick();
+}
+
 function renderLaunchLabel() {
   $('#launchBtn').innerHTML = `${icon('launch', 13)} ${DEMO_MODE ? 'Replay Investigation' : 'Launch Investigation'}`;
 }
@@ -762,6 +831,7 @@ function wire() {
   $('#resetBtn').addEventListener('click', async () => {
     const b = $('#resetBtn'); b.disabled = true; setStatus('Resetting…');
     clearTimeout(replayTimer);
+    replayState = null; replayMode = 'play'; renderReplayControls();
     run.active = false;
     $('#launchBtn').disabled = false; renderLaunchLabel();
     try {
@@ -784,6 +854,20 @@ function wire() {
       setStatus('Reset complete'); setTimeout(() => setStatus(''), 2000);
     } catch { setStatus('Reset failed'); }
     b.disabled = false;
+  });
+  $('#modeBtn').addEventListener('click', () => setReplayMode(replayMode === 'play' ? 'step' : 'play'));
+  $('#stepBtn').addEventListener('click', () => { if (replayMode === 'step') replayTick(); });
+  document.addEventListener('keydown', e => {
+    if (!DEMO_MODE || !run.active || !replayState) return;
+    // Never shadow a browser or OS chord, and never fire while someone is typing in the feedback
+    // widget's textarea — the same guard initTheme()'s `L` shortcut uses.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    // The guided tour owns the arrow keys while it is open.
+    if ($('#tourMask')?.classList.contains('on')) return;
+    if (e.key === ' ') { e.preventDefault(); setReplayMode(replayMode === 'play' ? 'step' : 'play'); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); if (replayMode === 'step') replayTick(); }
   });
 }
 
