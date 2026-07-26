@@ -40,6 +40,10 @@ export interface ReplayHealthReport {
   recordingSpanMs: number;
   /** How many recorded gaps the client's MAX clamp would bite. */
   clampedGaps: number;
+  /** How many recorded gaps sit at or under the client's sub-frame floor. */
+  subFrameGaps: number;
+  /** How many gaps there are in total — the denominator for both threshold checks. */
+  totalGaps: number;
 }
 
 function tsMs(ts: unknown): number {
@@ -121,5 +125,8 @@ export async function checkReplayHealth(
     );
   }
 
-  return { ok: warnings.length === 0, warnings, danglingIds, corpusSize, recordingSpanMs, clampedGaps };
+  return {
+    ok: warnings.length === 0, warnings, danglingIds, corpusSize, recordingSpanMs, clampedGaps,
+    subFrameGaps: subFrame, totalGaps: Math.max(0, stamps.length - 1),
+  };
 }

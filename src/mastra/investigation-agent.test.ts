@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildInvestigationAgent, runInvestigation, VerdictSchema, INVESTIGATION_SYSTEM } from './investigation-agent';
+import { ToolCallRecorder } from './tool-recorder';
 
 const cfg = {
   llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5', voyageApiKey: 'x', mongoUri: 'x', mongoDb: 'marshal',
@@ -60,5 +61,57 @@ describe('investigation agent', () => {
     const { agent, calls } = stubAgent([{ object: verdict }]);
     await expect(runInvestigation(agent, cfg, 'narrative')).resolves.toEqual(verdict);
     expect(calls()).toBe(1);
+  });
+});
+
+describe('runInvestigation', () => {
+  const cfg = {
+    llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5', voyageApiKey: 'x', mongoUri: 'x', mongoDb: 'marshal',
+  } as any;
+
+  it('passes the recorder hooks to generate() and commits the successful attempt', async () => {
+    const rec = new ToolCallRecorder();
+    const calls: any[] = [];
+    const agent: any = {
+      generate: async (_msgs: any, opts: any) => {
+        calls.push(opts);
+        // Mastra invokes the hooks around each tool execute; emulate one call inside the turn.
+        opts.hooks.beforeToolCall({ toolName: 'hybrid_search', input: { query: 'q', k: 4 }, context: {} });
+        opts.hooks.afterToolCall({ toolName: 'hybrid_search', input: { query: 'q', k: 4 }, context: {}, output: { results: [1, 2] } });
+        return { object: { recommendation: 'approve', confidence: 90, risk_factors: [], rationale: 'ok' } };
+      },
+    };
+
+    const v = await runInvestigation(agent, cfg, 'narrative', undefined, rec);
+    expect(v.recommendation).toBe('approve');
+    expect(calls[0].hooks).toBeDefined();
+    expect(rec.drain().map(e => e.tool.name)).toEqual(['hybrid_search']);
+  });
+
+  it('does not record the tool calls of an attempt that produced no usable verdict', async () => {
+    const rec = new ToolCallRecorder();
+    let n = 0;
+    const agent: any = {
+      generate: async (_msgs: any, opts: any) => {
+        n++;
+        const tool = n === 1 ? 'search_text' : 'hybrid_search';
+        opts.hooks.beforeToolCall({ toolName: tool, input: { query: 'q' }, context: {} });
+        opts.hooks.afterToolCall({ toolName: tool, input: { query: 'q' }, context: {}, output: { results: [] } });
+        // First attempt drops the object (the Bedrock miss this loop exists for); second succeeds.
+        return n === 1
+          ? { object: undefined, finishReason: 'stop' }
+          : { object: { recommendation: 'escalate', confidence: 50, risk_factors: ['x'], rationale: 'r' } };
+      },
+    };
+
+    await runInvestigation(agent, cfg, 'narrative', undefined, rec);
+    expect(rec.drain().map(e => e.tool.name)).toEqual(['hybrid_search']);
+  });
+
+  it('runs without a recorder — the parameter is optional for eval and bench call sites', async () => {
+    let i = 0;
+    const agent = { generate: async () => ({ object: { recommendation: 'approve', confidence: 80, risk_factors: [], rationale: 'r' } }) } as any;
+    const v = await runInvestigation(agent as any, cfg, 'narrative');
+    expect(v.confidence).toBe(80);
   });
 });

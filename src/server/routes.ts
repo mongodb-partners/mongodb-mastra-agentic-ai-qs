@@ -14,6 +14,14 @@ import { gatherStats, type StatsSnapshot } from './stats';
 import { recordingSource } from '../data/replay-store';
 
 /**
+ * How many recent events `/api/feed` backfills. A run emits one event per pipeline stage PLUS one
+ * per agent tool call — ~55-70 for the six-case demo, up from 38 before tool calls were recorded —
+ * so 60 no longer covers a full run on a fresh page load. The client cap in public/app.js's
+ * addFeed() must stay at or above this number, or the DOM drops what the server sent.
+ */
+export const FEED_LIMIT = 120;
+
+/**
  * Re-derive the evidence snapshot from CURRENT case/transaction state (review finding #2), so the
  * stale-evidence check compares live state to the hash captured at suspend-time — not a stored
  * snapshot to itself. Returns null if the case has no analysis yet (caller falls back).
@@ -88,7 +96,7 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
   // Recent agent-operations feed (so a fresh page load shows the last run's activity).
   app.get('/api/feed', async c => {
     const events = await db.collection(REC.events)
-      .find({}, { projection: { _id: 0 } }).sort({ ts: -1 }).limit(60).toArray();
+      .find({}, { projection: { _id: 0 } }).sort({ ts: -1 }).limit(FEED_LIMIT).toArray();
     return c.json({ events });
   });
 

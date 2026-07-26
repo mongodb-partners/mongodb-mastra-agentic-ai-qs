@@ -5,6 +5,7 @@ import { logger } from '../observability/logger';
 import { getLLM, maxTokensFor, temperatureFor } from './models';
 import { buildRetrievalTools } from './tools/retrieval-tools';
 import type { RetrievalService } from '../retrieval/service';
+import type { ToolCallRecorder } from './tool-recorder';
 
 /** The typed verdict the agent must emit. Code (decision/core.reconcile) has the final word. */
 export const VerdictSchema = z.object({
@@ -51,9 +52,16 @@ export function buildInvestigationAgent(cfg: Config, svc: RetrievalService, mode
  */
 const VERDICT_ATTEMPTS = 3;
 
-/** Run the agent over a case narrative and return its typed verdict. */
+/**
+ * Run the agent over a case narrative and return its typed verdict.
+ *
+ * `recorder` is optional: when supplied, every tool call the agent makes inside the COMMITTED
+ * attempt becomes a timeline event (see ToolCallRecorder). It is the last parameter so the existing
+ * four-argument call sites (scripts/eval.ts, the model-bench scripts) keep compiling.
+ */
 export async function runInvestigation(
-  agent: Agent, cfg: Config, caseNarrative: string, modelOverride?: string,
+  agent: Agent, cfg: Config, caseNarrative: string,
+  modelOverride?: string, recorder?: ToolCallRecorder,
 ): Promise<Verdict> {
   const model = modelOverride || cfg.llmModel;
   const prompt = `Review this transaction and produce your verdict:\n\n${caseNarrative}`;
@@ -67,6 +75,10 @@ export async function runInvestigation(
   // retry and validate here rather than making every call site defensive.
   let last = '';
   for (let attempt = 1; attempt <= VERDICT_ATTEMPTS; attempt++) {
+    // Bracket EVERY attempt, including retries: a retried turn's tool calls really ran, but they
+    // belong to a reasoning pass no verdict rests on, so they are discarded when the next attempt
+    // starts and only promoted by commitAttempt() below.
+    recorder?.startAttempt();
     const res = await agent.generate(
       [{ role: 'user', content: prompt }],
       {
@@ -74,6 +86,7 @@ export async function runInvestigation(
         maxSteps: 8,
         maxTokens: maxTokensFor(model),
         temperature: temperatureFor(model),
+        ...(recorder ? { hooks: recorder.hooks() } : {}),
       } as any,
     );
 
@@ -81,7 +94,10 @@ export async function runInvestigation(
     // typed data, and a shape that only *looks* right (missing risk_factors, confidence out of
     // range) would otherwise surface as a downstream crash or a bogus stored verdict.
     const parsed = VerdictSchema.safeParse((res as any).object);
-    if (parsed.success) return parsed.data;
+    if (parsed.success) {
+      recorder?.commitAttempt();
+      return parsed.data;
+    }
 
     last = (res as any).object === undefined
       ? `empty structured output (finishReason=${(res as any).finishReason})`

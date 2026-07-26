@@ -86,6 +86,9 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #status { font-family:var(--mono); font-size:12px; color:var(--mongo); }
   #themeBtn { display:inline-flex; align-items:center; gap:6px; }
   #themeBtn .ticon { font-size:13px; line-height:1; }
+  #top #modeBtn { display:inline-flex; align-items:center; gap:6px; }
+  #top #modeBtn .micon { font-size:10px; }
+  #top #modeBtn.stepping { border-color:var(--warn); color:var(--warn); }
   .btn { font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--border);
          background:var(--shadow2); color:var(--ink); padding:8px 14px; border-radius:9px; cursor:pointer; transition:.15s; }
   .btn:hover { border-color:var(--muted); }
@@ -176,6 +179,17 @@ try { var q = new URLSearchParams(location.search).get('ui');
   @keyframes sweep { 0%,100%{opacity:.35} 50%{opacity:1} }
   #tnow { font-size:13px; color:var(--ink); margin:10px 0 2px; min-height:20px; display:flex; gap:9px; align-items:baseline; }
   #tnow .ic { color:var(--mongo); } #tnow .d { color:var(--muted); font-size:12px; }
+  /* Dual attribution: Mastra tool on the left, MongoDB operator on the right. The operator is
+     mono + accent because it is the half of the claim the audience is meant to read. */
+  #tnow .tattr { font-family:var(--mono); font-size:12px; color:var(--ink); display:inline-flex; gap:6px; align-items:baseline; flex-wrap:wrap; }
+  #tnow .tattr .sep { color:var(--dim); }
+  #tnow .tattr.bad { color:var(--crit); }
+  /* Running tool-call count on the reason box. Absolute so it cannot change .tstep's height and
+     re-trigger the flex-wrap alignment work the 2026-07-25 reflow settled. */
+  .tpipe .tstep .tbadge { position:absolute; top:-6px; right:-4px; min-width:15px; height:15px; padding:0 3px;
+                          border-radius:999px; background:var(--mongo); color:var(--bg);
+                          font-family:var(--mono); font-size:9px; line-height:15px; text-align:center; }
+  .tpipe .tstep.working { border-color:var(--mongo); color:var(--mongo); }
   #tevid { margin-top:10px; }
   #tevid .section { animation:mount .35s ease; }
   @keyframes mount { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
@@ -207,6 +221,15 @@ try { var q = new URLSearchParams(location.search).get('ui');
   .mini .row .pill { transform:scale(.92); }
   .policy { border-left:3px solid var(--warn); }
   .rationale { font-size:13px; color:var(--muted); line-height:1.6; border-left:3px solid var(--info); padding:2px 0 2px 12px; }
+
+  /* Ordered agent operations: tool name, the Atlas operator that served it, duration. Grid rather
+     than flex so the operator column aligns down the list and the row reads as a table. */
+  .ops { display:flex; flex-direction:column; gap:4px; }
+  .ops .op { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:9px; align-items:baseline;
+             font-size:11.5px; padding:5px 8px; border:1px solid var(--border); border-radius:7px; background:var(--shadow); }
+  .ops .op .opq { color:var(--mongo); font-size:11px; }
+  .ops .op .sub { color:var(--muted); font-size:10.5px; }
+  .ops .op.bad .opq { color:var(--crit); }
 
   /* threshold gauge (structuring cases — replaces a degenerate 1-node "network") */
   .gauge { margin:6px 0 2px; }
@@ -506,6 +529,8 @@ try { var q = new URLSearchParams(location.search).get('ui');
     <div style="flex:1"></div>
     <button class="btn" id="tourBtn" title="Guided tour">? Tour</button>
     <button class="btn" id="themeBtn" title="Toggle light / dark (L)" aria-keyshortcuts="l"><span class="ticon">☀</span><span class="tlbl">Light</span></button>
+    <button class="btn" id="modeBtn" hidden title="Play / step the replay (space)" aria-keyshortcuts="space"><span class="micon">▶</span><span class="mlbl">Playing</span></button>
+    <button class="btn" id="stepBtn" hidden title="Advance one event (→)" aria-keyshortcuts="ArrowRight">Step ›</button>
     <button class="btn" id="resetBtn">Reset</button>
     <button class="btn launch" id="launchBtn"></button>
   </div>

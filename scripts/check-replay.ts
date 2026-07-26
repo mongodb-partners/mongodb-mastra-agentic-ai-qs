@@ -38,7 +38,9 @@ async function main() {
     logger.info('replay health', {
       ok: health.ok, corpus: health.corpusSize,
       recording_span_s: +(health.recordingSpanMs / 1000).toFixed(1),
-      dangling_precedent_ids: health.danglingIds.length, clamped_gaps: health.clampedGaps,
+      dangling_precedent_ids: health.danglingIds.length,
+      sub_frame_gaps: `${health.subFrameGaps}/${health.totalGaps}`,
+      clamped_gaps: `${health.clampedGaps}/${health.totalGaps}`,
     });
     for (const w of health.warnings) logger.warn(w);
     if (!health.ok) throw new Error(`${health.warnings.length} staleness warning(s)`);

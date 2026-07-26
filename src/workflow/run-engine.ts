@@ -10,6 +10,7 @@ import { triage, reconcile } from '../decision/core';
 import { getQueryEmbedder } from '../mastra/embed';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
 import { logger } from '../observability/logger';
+import { ToolCallRecorder, type ToolCallEvent } from '../mastra/tool-recorder';
 
 export const AGENT_EVENTS_COLLECTION = 'agent_events';
 export const CASE_ANALYSIS_COLLECTION = 'case_analysis';
@@ -21,6 +22,26 @@ async function emit(db: Db, e: { transaction_id: string; step: string; headline:
   // `capabilities` is the set of MongoDB jobs this step exercised (an event can hit several —
   // hybrid search runs vector + full-text + fusion). The rail counts across this array.
   await db.collection(AGENT_EVENTS_COLLECTION).insertOne({ ...e, capability: e.capabilities?.[0], ts: new Date() });
+}
+
+/**
+ * Shape one recorded tool call into an `agent_events` document.
+ *
+ * Deliberately NOT routed through emit(): emit() stamps `ts: new Date()`, which is write time, and
+ * these events are written as a batch after the verdict returns. Their recorded `ts` is the real
+ * completion instant, and the replay paces off `ts` deltas — overwriting it would collapse every
+ * tool call in a case into one frame.
+ */
+export function toolEventDoc(run_id: string, transaction_id: string, e: ToolCallEvent) {
+  const cap = e.capabilities?.[0];
+  return {
+    run_id, transaction_id,
+    step: e.step, headline: e.headline, detail: e.detail,
+    ...(e.capabilities ? { capabilities: e.capabilities } : {}),
+    ...(cap ? { capability: cap } : {}),
+    tool: e.tool,
+    ts: e.ts,
+  };
 }
 
 /**
@@ -82,6 +103,7 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
           transaction_id: id, amount: t.amount, lane: t.lane, sender: t.sender, recipient: t.recipient, narrative: t.text,
           precedents: [], memory: [], ring: { edges: [] }, governance: { compliance_score: 0, violations: [], held: false, dropped_citations: [] },
           verdict: { recommendation: 'reject', confidence: 100, risk_factors: hard.risk_factors, rationale: hard.rationale },
+          tool_calls: [],
           decision: { disposition: hard.disposition, decided_by: hard.decided_by, risk_factors: hard.risk_factors, rationale: hard.rationale },
           phase: 'committed', capabilities: [...caps], updated_at: new Date(),
         }, { upsert: true });
@@ -102,8 +124,20 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
         await emit(db, { run_id, transaction_id: id, step: 'recall', headline: `Recalled ${memory.length} prior verdict(s)`, detail: memory.map(m => `${m.transaction_id}→${m.disposition}`).join(', '), capabilities: ['memory'] });
       }
 
-      // Agent reasoning.
-      const verdict = await runInvestigation(agent, cfg, t.text);
+      // Agent reasoning. The recorder turns each of the agent's own tool calls into a timeline
+      // event, so the model's thinking window shows the Atlas operations happening inside it
+      // instead of reading as one dead gap. Fresh per case: drain() is called right below, but a
+      // per-case instance also means a case that throws cannot leak its calls into the next one.
+      const recorder = new ToolCallRecorder();
+      const verdict = await runInvestigation(agent, cfg, t.text, undefined, recorder);
+
+      // Tool events go in BEFORE the reason event and in call order — they are how the verdict was
+      // reached, and in live mode the change stream delivers them in insertion order.
+      const toolEvents = recorder.drain();
+      for (const te of toolEvents) {
+        te.capabilities?.forEach(c => caps.add(c));
+        await db.collection(AGENT_EVENTS_COLLECTION).insertOne(toolEventDoc(run_id, id, te));
+      }
       await emit(db, { run_id, transaction_id: id, step: 'reason', headline: `Agent: ${verdict.recommendation} · confidence ${verdict.confidence}`, detail: verdict.risk_factors[0] });
 
       // Graph fund-tracing ($graphLookup) runs on every case — emit either way so the rail reflects it.
@@ -136,6 +170,7 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
         transaction_id: id, amount: t.amount, lane: t.lane,
         sender: t.sender, recipient: t.recipient, narrative: t.text,
         precedents, memory, ring, governance: gov, verdict,
+        tool_calls: toolEvents.map(te => te.tool),
         decision: { disposition: decision.disposition, decided_by: decision.decided_by, risk_factors: decision.risk_factors, rationale: decision.rationale },
         phase: out.phase, evidence_hash: out.evidence_hash ?? evidenceHash(snapshot),
         snapshot, capabilities: [...caps], updated_at: new Date(),

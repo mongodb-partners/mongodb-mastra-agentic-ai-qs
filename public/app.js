@@ -239,10 +239,10 @@ function loadQueueRender() { // re-render from cache without a refetch
 const T_STEPS = ['triage', 'retrieve', 'reason', 'graph', 'govern', 'decide'];
 const STEP_TO_STAGE = { triage: 'triage', retrieve: 'retrieve', recall: 'retrieve', reason: 'reason', graph: 'graph', govern: 'govern', suspend: 'decide', commit: 'decide' };
 const run = { active: false };
-const theater = { caseId: null, stages: new Set(), done: [] };
+const theater = { caseId: null, stages: new Set(), done: [], toolCount: 0 };
 
 function enterTheater() {
-  theater.caseId = null; theater.stages = new Set(); theater.done = [];
+  theater.caseId = null; theater.stages = new Set(); theater.done = []; theater.toolCount = 0;
   $('#tdone').innerHTML = ''; $('#tcase').innerHTML = '<div class="empty">waiting for the first case…</div>';
   showCenter('theater');
 }
@@ -263,8 +263,30 @@ function theaterCaseHead(t, id) {
     <div id="tnow"></div>
     <div id="tevid"></div>`;
 }
+/**
+ * The dual-attribution line: Mastra on the left of the separator, MongoDB on the right.
+ *
+ *   hybrid_search · $rankFusion · 214ms
+ *
+ * This is the moment the whole change is for — it appears DURING the model's thinking window, where
+ * the timeline previously showed one 41-second gap (85% of the recorded run's span). Density tiers
+ * trim right-to-left: the operator is the last thing to go because it is the MongoDB half of the
+ * claim, and on a phone it is the ONLY thing shown.
+ */
+function toolLine(d) {
+  const t = d.tool || {};
+  const name = esc(t.name || 'tool');
+  const op = t.op ? esc(t.op) : '';
+  const ms = Number.isFinite(t.ms) ? `${t.ms}ms` : '';
+  const parts = dense(
+    [name, op, ms],           // full / laptop
+    [name, op],               // tablet
+    [op || name],             // phone — the operator alone
+  ).filter(Boolean);
+  return `<span class="tattr${t.ok === false ? ' bad' : ''}">${parts.join('<span class="sep">·</span>')}</span>`;
+}
 function theaterStart(id) {
-  theater.caseId = id; theater.stages = new Set();
+  theater.caseId = id; theater.stages = new Set(); theater.toolCount = 0;
   $('#tcase').innerHTML = theaterCaseHead(casesById[id], id);
   queueOverlay[id] = 'investigating';
   loadQueueRender();
@@ -288,6 +310,29 @@ function theaterStage(stage, d) {
   });
   const now = $('#tnow');
   if (now) now.innerHTML = `${icon(STEP_ICON[d.step] || 'reason', 15)}<span>${esc(d.headline)}</span><span class="d">${esc(d.detail || '')}</span>`;
+}
+/**
+ * A tool event updates the "now" line and the counter on `reason` — and NOTHING else.
+ *
+ * It deliberately does not call theaterStage(). That function treats its argument as a completed
+ * stage and lights the next one; `tool` belongs to `reason`, which sits after `retrieve`, so routing
+ * a tool event through it would mark reasoning complete while the model is still thinking and stamp
+ * the pipeline ahead of the verdict. Tool calls happen INSIDE the reason stage; they do not advance
+ * past it.
+ */
+function theaterTool(d) {
+  theater.toolCount++;
+  const now = $('#tnow');
+  if (now) {
+    now.innerHTML = `${icon('tool', 15)}${toolLine(d)}<span class="d">${esc(d.detail || '')}</span>`;
+  }
+  const box = document.querySelector('#tcase .tstep[data-stage="reason"]');
+  if (box) {
+    let badge = box.querySelector('.tbadge');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'tbadge'; box.appendChild(badge); }
+    badge.textContent = theater.toolCount;
+    box.classList.add('working');
+  }
 }
 async function theaterTerminal(d) {
   const id = d.transaction_id;
@@ -316,6 +361,7 @@ function renderDoneChips() {
 function theaterEvent(d) {
   if (!run.active || !d.transaction_id) return;
   if (d.transaction_id !== theater.caseId) theaterStart(d.transaction_id);
+  if (d.step === 'tool') { theaterTool(d); return; }   // never reaches theaterStage — see theaterTool
   const stage = STEP_TO_STAGE[d.step];
   if (stage) theaterStage(stage, d);
   if (d.step === 'suspend' || d.step === 'commit') theaterTerminal(d);
@@ -323,6 +369,13 @@ function theaterEvent(d) {
 function endRun() {
   if (!run.active) return;
   run.active = false;
+  clearTimeout(replayTimer);
+  replayState = null;
+  // Back to the default mode, not the one the last presenter left behind: a box that finished a
+  // stepped run with replayMode='step' renders exactly one event on the NEXT Launch and freezes,
+  // because nothing arms the timer. One presenter interaction would strand an unattended box.
+  replayMode = 'play';
+  renderReplayControls();
   const b = $('#launchBtn'); b.disabled = false; renderLaunchLabel();
   const held = theater.done.filter(c => c.outcome === 'held').length;
   setStatus(held ? `Run complete: ${held} case${held > 1 ? 's' : ''} held for your decision` : 'Run complete');
@@ -391,10 +444,25 @@ function evidenceSections(a, { compact = false } = {}) {
     : (a.lane === 'structuring'
       ? `<div class="section"><div class="lbl">${icon('warn', 13)} Reporting-threshold proximity <span class="chip2">deterministic rule</span></div>${thresholdGauge(a.amount)}</div>`
       : '');
+  // The ordered operations the agent actually ran, with the Atlas operator each one used. Ordered by
+  // call, not by duration — the sequence is the reasoning. Compact (theater terminal) shows the
+  // first three; the full case detail shows all of them.
+  const calls = a.tool_calls || [];
+  const opsSection = calls.length
+    ? `<div class="section"><div class="lbl">${icon('tool', 13)} Agent operations <span class="chip2">${calls.length} tool call${calls.length > 1 ? 's' : ''}</span></div>
+        <div class="ops">${calls.slice(0, compact ? 3 : calls.length).map(c => `
+          <div class="op${c.ok === false ? ' bad' : ''}">
+            <b class="mono">${esc(c.name)}</b>
+            <span class="opq mono">${esc(c.op || '—')}</span>
+            <span class="sub">${Number.isFinite(c.ms) ? `${c.ms}ms` : ''}</span>
+          </div>`).join('')}</div>
+        ${compact && calls.length > 3 ? `<div class="sub dim">+${calls.length - 3} more</div>` : ''}</div>`
+    : '';
   return `
     <div class="section"><div class="lbl">${icon('memory', 13)} Similar precedent <span class="chip2">hybrid search</span></div>
       ${precedents || '<div class="sub dim">none</div>'}</div>
     ${graphSection}
+    ${opsSection}
     <div class="section"><div class="lbl">${icon('governance', 13)} Policy governance <span class="chip2">$vectorSearch on policies</span></div>
       <div class="row" style="margin-bottom:7px"><span class="sub">compliance score</span><b class="mono" style="color:${scoreColor}">${scorePct}%</b></div>
       <div class="meter"><i style="width:${scorePct}%;background:${scoreColor}"></i></div>
@@ -428,9 +496,13 @@ async function openCase(id) {
   const myDecision = sessionResolved[id];
   const held = a.phase === 'suspended' && !myDecision;
 
+  const stepLink = DEMO_MODE
+    ? `<button class="btn" id="stepThisCase" style="margin-bottom:10px">▶ Step through this case</button>`
+    : '';
+
   // Verdict + gate FIRST (the money moment lives above the fold), rationale in the open,
   // then the evidence that produced it.
-  detail.innerHTML = `${backLink}
+  detail.innerHTML = `${backLink}${stepLink}
     <div class="dhead">
       <div><div class="amt">${money(a.amount)}</div><div class="id">${esc(id)} · ${esc(a.lane)}</div></div>
       <span class="pill ${held ? 'held' : esc(myDecision || dec.disposition)}">${held ? 'HELD FOR REVIEW' : esc(myDecision || dec.disposition || '')}</span>
@@ -457,6 +529,15 @@ async function openCase(id) {
     detail.querySelector('[data-approve]').onclick = () => resolve(id, 'approve');
     detail.querySelector('[data-reject]').onclick = () => resolve(id, 'reject');
   }
+  const stepBtn = detail.querySelector('#stepThisCase');
+  if (stepBtn) stepBtn.onclick = async () => {
+    clearTimeout(replayTimer);
+    replayMode = 'step';
+    run.active = true;
+    $('#launchBtn').disabled = true;
+    setStatus(`Stepping through ${id}`);
+    await runReplay(id);   // scoped: only this case's events, and theaterStart(id) is forced
+  };
   wireBackToRun();
 }
 function wireBackToRun() {
@@ -484,7 +565,7 @@ async function resolve(id, decision) {
 }
 
 // ---- feed -------------------------------------------------------------------
-const STEP_ICON = { triage: 'triage', retrieve: 'retrieve', recall: 'recall', reason: 'reason', graph: 'graph', govern: 'govern', suspend: 'suspend', commit: 'commit', reset: 'reset', human: 'human' };
+const STEP_ICON = { triage: 'triage', retrieve: 'retrieve', recall: 'recall', reason: 'reason', tool: 'tool', graph: 'graph', govern: 'govern', suspend: 'suspend', commit: 'commit', reset: 'reset', human: 'human' };
 function addFeed(ico, actor, id, headline, step, detail) {
   const feed = $('#feed');
   const it = document.createElement('div');
@@ -494,7 +575,9 @@ function addFeed(ico, actor, id, headline, step, detail) {
       <div>${esc(headline)} <span class="dim mono">${esc(id || '')}</span></div>
       ${detail ? `<div class="fdet">${esc(detail)}</div>` : ''}</div>`;
   feed.prepend(it);
-  while (feed.childElementCount > 60) feed.lastElementChild.remove();
+  // Matches FEED_LIMIT in src/server/routes.ts — the server backfills that many, so a smaller cap
+  // here would drop events it just sent. No build step means no shared constant; keep them in sync.
+  while (feed.childElementCount > 120) feed.lastElementChild.remove();
 }
 async function backfillFeed() {
   if ($('#feed').childElementCount) return;
@@ -597,6 +680,19 @@ function connect() {
 let replayTimer = null;
 
 /**
+ * Step-through state. `replayMode` is the ONLY switch: in 'step' the tick renders its event and
+ * returns without arming the timer, so the presenter's Step action is the clock. Same tick, same
+ * rendering, same pacing code — a second stepping loop would drift from the auto-play one.
+ *
+ * Default 'play' is deliberate and load-bearing: an unattended booth box, and every ?ui=classic
+ * viewer, must behave exactly as it did before this existed.
+ */
+let replayMode = 'play';
+/** The live replay cursor. `order` is the index sequence tick() walks — the full recording, or one
+ *  case's slice when the presenter stepped in from a case. */
+let replayState = null;
+
+/**
  * Replay pacing, derived from the RECORDED `ts` deltas rather than a fixed dwell.
  *
  * The old code waited a flat 480 ms between every event (1600 ms after a verdict), which made the
@@ -647,7 +743,7 @@ function replaySpeed() {
   return Number.isFinite(v) && v > 0 ? Math.min(v, 20) : 1;
 }
 
-async function runReplay() {
+async function runReplay(scopeCaseId = null) {
   const { events = [], analyses = [] } = await fetch('/api/replay').then(r => r.json()).catch(() => ({}));
   if (!events.length) { setStatus('No baked replay found. Run `pnpm bake` first.'); endRun(); return; }
   // Choreography reset: rail + feed count only this run; every analyzed case visually returns
@@ -658,24 +754,74 @@ async function runReplay() {
   for (const a of analyses) { if (!sessionResolved[a.transaction_id]) queueOverlay[a.transaction_id] = 'pending'; }
   loadQueueRender();
   enterTheater();
-  const speed = replaySpeed();
-  let i = 0;
-  const tick = () => {
-    if (!run.active) return;
-    if (i >= events.length) { endRun(); return; }
-    const at = i++;
-    const d = events[at];
-    addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail);
-    (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
-    theaterEvent(d);
-    // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
-    // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
-    replayTimer = setTimeout(tick, replayDwellMs(events, at, speed));
-  };
-  tick();
+
+  // Case scoping: step only through ONE case's events, as a filtered index into the same array —
+  // not a second loop, so replayDwellMs still reads the real recorded gaps between them.
+  const order = events
+    .map((e, ix) => ix)
+    .filter(ix => !scopeCaseId || events[ix].transaction_id === scopeCaseId);
+  replayState = { events, order, at: 0, speed: replaySpeed(), scopeCaseId };
+  // Scoped stepping starts mid-recording, so the pipeline would otherwise inherit whatever boxes
+  // the previously-played case lit. theaterStart() resets theater.stages, so forcing it is enough.
+  if (scopeCaseId) theaterStart(scopeCaseId);
+  renderReplayControls();
+  replayTick();
+}
+
+/** Render one replay event and, in play mode, arm the next. Called by the timer OR by Step. */
+function replayTick() {
+  const st = replayState;
+  if (!run.active || !st) return;
+  if (st.at >= st.order.length) { endRun(); return; }
+  const ix = st.order[st.at++];
+  const d = st.events[ix];
+  addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail);
+  (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
+  theaterEvent(d);
+  renderReplayControls();
+  // The presenter is the clock — but only while there is still something to step TO. After the last
+  // event renderReplayControls disables #stepBtn (left <= 0), so in step mode nothing would ever
+  // call tick() again and the run would never reach the endRun() at the top of the next tick:
+  // #launchBtn stays disabled and Reset becomes the only way out. Arming the terminal dwell in both
+  // modes cannot race the presenter's stepping, because there is no remaining event for a Step to
+  // render — all this last tick can do is end the run, on the single existing advance path.
+  if (replayMode !== 'play' && st.at < st.order.length) return;
+  // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
+  // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
+  replayTimer = setTimeout(replayTick, replayDwellMs(st.events, ix, st.speed));
 }
 
 // ---- top-bar wiring ----------------------------------------------------------
+/** Show/label the replay controls for the current mode. Hidden outside an active replay. */
+function renderReplayControls() {
+  const mode = $('#modeBtn'); const step = $('#stepBtn');
+  if (!mode || !step) return;
+  const on = DEMO_MODE && run.active && !!replayState;
+  mode.hidden = !on; step.hidden = !on || replayMode !== 'step';
+  if (!on) return;
+  const stepping = replayMode === 'step';
+  mode.classList.toggle('stepping', stepping);
+  mode.querySelector('.micon').textContent = stepping ? '⏸' : '▶';
+  mode.querySelector('.mlbl').textContent = stepping ? 'Stepping' : 'Playing';
+  mode.setAttribute('aria-label', stepping ? 'Resume automatic playback' : 'Pause and step manually');
+  const left = replayState.order.length - replayState.at;
+  step.textContent = left > 0 ? `Step › ${left}` : 'Step ›';
+  step.disabled = left <= 0;
+}
+
+/** Switch between auto-play and manual stepping, re-arming from the CURRENT cursor either way. */
+function setReplayMode(next) {
+  replayMode = next;
+  // With the cursor exhausted the armed timer is the terminal dwell — the run's ONLY remaining path
+  // to endRun(). Cancelling it because someone paused on the closing stamp would deadlock exactly
+  // the way stepping past the last event used to.
+  const exhausted = !!replayState && replayState.at >= replayState.order.length;
+  if (!exhausted) clearTimeout(replayTimer);
+  renderReplayControls();
+  // Resuming play continues from wherever stepping left the cursor — the recording is not restarted.
+  if (next === 'play' && run.active && replayState && !exhausted) replayTick();
+}
+
 function renderLaunchLabel() {
   $('#launchBtn').innerHTML = `${icon('launch', 13)} ${DEMO_MODE ? 'Replay Investigation' : 'Launch Investigation'}`;
 }
@@ -699,6 +845,7 @@ function wire() {
   $('#resetBtn').addEventListener('click', async () => {
     const b = $('#resetBtn'); b.disabled = true; setStatus('Resetting…');
     clearTimeout(replayTimer);
+    replayState = null; replayMode = 'play'; renderReplayControls();
     run.active = false;
     $('#launchBtn').disabled = false; renderLaunchLabel();
     try {
@@ -721,6 +868,20 @@ function wire() {
       setStatus('Reset complete'); setTimeout(() => setStatus(''), 2000);
     } catch { setStatus('Reset failed'); }
     b.disabled = false;
+  });
+  $('#modeBtn').addEventListener('click', () => setReplayMode(replayMode === 'play' ? 'step' : 'play'));
+  $('#stepBtn').addEventListener('click', () => { if (replayMode === 'step') replayTick(); });
+  document.addEventListener('keydown', e => {
+    if (!DEMO_MODE || !run.active || !replayState) return;
+    // Never shadow a browser or OS chord, and never fire while someone is typing in the feedback
+    // widget's textarea — the same guard initTheme()'s `L` shortcut uses.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    // The guided tour owns the arrow keys while it is open.
+    if ($('#tourMask')?.classList.contains('on')) return;
+    if (e.key === ' ') { e.preventDefault(); setReplayMode(replayMode === 'play' ? 'step' : 'play'); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); if (replayMode === 'step') replayTick(); }
   });
 }
 
