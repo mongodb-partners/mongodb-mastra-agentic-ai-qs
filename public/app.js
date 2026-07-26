@@ -205,9 +205,15 @@ async function loadQueue() {
   if (run.active && !DEMO_MODE && !stillOpen) endRun();
 }
 let corpusTotal = null;
+/** "showing 50 of 12,000" — the denominator is the whole transactions collection, not the page.
+ *  It used to read "showing 50 · 75 corpus", which buried the one number that makes the scale claim:
+ *  a reader parses the pair as "50 of 75" and concludes the demo runs over 75 documents. The queue is
+ *  capped at 50 by /api/cases; retrieval, $graphLookup and precedent recall run over the full
+ *  collection, so the total is the honest figure to put next to it. "of" instead of "·" because the
+ *  interesting relationship is part-of-whole, and a middot states no relationship at all. */
 function renderQueueCount(visible) {
   $('#qcount').textContent = corpusTotal && corpusTotal > visible
-    ? `showing ${visible} · ${corpusTotal.toLocaleString()} corpus` : `${visible ?? ''}`;
+    ? `showing ${visible} of ${corpusTotal.toLocaleString()}` : `${visible ?? ''}`;
 }
 // Mark cases sitting at the human gate (works for late joiners after any run).
 async function overlayHeldFromReviews() {
