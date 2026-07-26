@@ -21,6 +21,23 @@ export const TOOL_OPERATORS: Record<string, { op: string; capabilities: Capabili
  */
 export const MAX_ARG_QUERY_CHARS = 120;
 
+/**
+ * A tool failure's `detail` is `String(error)` — a driver error with a full server message and an
+ * `errorLabels`/topology dump measured 9007 characters, and even the success summary can run to
+ * ~1600. That string is permanent in `agent_events`, gets committed into data/replay/*.json, and
+ * renders straight into the feed's one-line `.fdet`. Cap it here, at emit time, for the same reason
+ * MAX_ARG_QUERY_CHARS exists: capping at render time would still ship the whole thing. The prefix is
+ * the useful part of both — the driver names the failing operation first, and the summary leads with
+ * the transaction ids.
+ */
+export const MAX_DETAIL_CHARS = 240;
+
+/** Trim a feed detail to the cap, preserving `undefined` so the row simply has no detail line. */
+function clampDetail(detail: string | undefined): string | undefined {
+  if (detail === undefined) return undefined;
+  return detail.length > MAX_DETAIL_CHARS ? `${detail.slice(0, MAX_DETAIL_CHARS)}…` : detail;
+}
+
 /** One recorded tool call, shaped to drop straight into `agent_events` via run-engine's emit(). */
 export interface ToolCallEvent {
   step: 'tool';
@@ -42,6 +59,13 @@ export interface ToolCallEvent {
     args: Record<string, unknown>;
     result_count: number | null;
   };
+}
+
+/** The per-call timing key: the hook context's own `input` object, or null when it is not one. */
+function keyOf(input: unknown): object | null {
+  return input !== null && (typeof input === 'object' || typeof input === 'function')
+    ? (input as object)
+    : null;
 }
 
 /** Trim every string arg to the cap, and drop anything that is not a scalar we want in the record. */
@@ -104,12 +128,28 @@ function summarize(toolName: string, output: unknown): string | undefined {
 export class ToolCallRecorder {
   private attempt: ToolCallEvent[] = [];
   private committed: ToolCallEvent[] = [];
-  private started = new Map<string, number>();
+  /**
+   * Call start instants, keyed by the call's own `input` OBJECT rather than its tool name.
+   *
+   * @mastra/core's wrapToolWithHooks builds one `hookContext` per call and hands afterToolCall a
+   * shallow `{ ...hookContext, output }`, so `ctx.input` is the same reference in both hooks of a
+   * call and a distinct reference across calls. That identity is the only per-call handle the hooks
+   * expose — ToolHookContext carries no call id — and it is what makes concurrent calls separable:
+   * keyed by NAME, two overlapping `hybrid_search` calls overwrite each other's start time and the
+   * second reports a false `ms: 0` next to a MongoDB operator, baked into the recording.
+   *
+   * WeakMap, not Map, so a discarded verdict attempt's un-completed entries cannot linger.
+   */
+  private started = new WeakMap<object, number>();
+  /** Fallback for a call whose `input` is not an object (a WeakMap key must be). Name-keyed, so it
+   *  keeps the old collision behaviour for that degenerate case rather than throwing. */
+  private startedByName = new Map<string, number>();
 
   /** Begin a verdict attempt. Anything the previous, uncommitted attempt recorded is discarded. */
   startAttempt(): void {
     this.attempt = [];
-    this.started.clear();
+    this.started = new WeakMap();
+    this.startedByName.clear();
   }
 
   /** Promote this attempt's calls to the permanent record. Called only when a verdict validated. */
@@ -129,12 +169,16 @@ export class ToolCallRecorder {
   hooks() {
     return {
       beforeToolCall: (ctx: any) => {
-        this.started.set(String(ctx?.toolName ?? ''), Date.now());
+        const key = keyOf(ctx?.input);
+        if (key) this.started.set(key, Date.now());
+        else this.startedByName.set(String(ctx?.toolName ?? 'unknown'), Date.now());
       },
       afterToolCall: (ctx: any) => {
         const name = String(ctx?.toolName ?? 'unknown');
-        const at = this.started.get(name);
-        this.started.delete(name);
+        const key = keyOf(ctx?.input);
+        let at: number | undefined;
+        if (key) { at = this.started.get(key); this.started.delete(key); }
+        else { at = this.startedByName.get(name); this.startedByName.delete(name); }
         const map = TOOL_OPERATORS[name];
         // An unmapped tool must degrade to an unlabelled row, never take down the run: losing a
         // whole investigation to a missing map entry is a far worse failure than a missing operator.
@@ -148,7 +192,7 @@ export class ToolCallRecorder {
           headline: ok
             ? `${name} → ${count === null ? 'ok' : `${count} ${resultNoun(name)}`}`
             : `${name} → failed`,
-          detail: ok ? summarize(name, ctx?.output) : String(ctx?.error),
+          detail: clampDetail(ok ? summarize(name, ctx?.output) : String(ctx?.error)),
           ...(map ? { capabilities: map.capabilities } : {}),
           ts: new Date(done),
           tool: {

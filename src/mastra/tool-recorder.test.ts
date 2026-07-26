@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ToolCallRecorder, TOOL_OPERATORS, MAX_ARG_QUERY_CHARS } from './tool-recorder';
+import { ToolCallRecorder, TOOL_OPERATORS, MAX_ARG_QUERY_CHARS, MAX_DETAIL_CHARS } from './tool-recorder';
 
 /** Drive one tool call through the hooks the way Mastra's wrapToolWithHooks does. */
 async function callTool(rec: ToolCallRecorder, name: string, input: any, outcome: { output?: any; error?: any }) {
@@ -105,6 +105,61 @@ describe('ToolCallRecorder', () => {
     expect(TOOL_OPERATORS.search_text.op).toBe('$search');
     expect(TOOL_OPERATORS.trace_funds.op).toBe('$graphLookup');
     expect(TOOL_OPERATORS.recall_verdicts.capabilities).toEqual(['memory']);
+  });
+
+  it('times INTERLEAVED calls to the same tool separately, so neither reports a false 0ms', async () => {
+    const rec = new ToolCallRecorder();
+    rec.startAttempt();
+    const h = rec.hooks();
+    // Mastra fans tool calls out concurrently, and two hybrid_search calls in one turn is normal for
+    // this agent. Name-keyed timing had the second before() overwrite the first's start and the
+    // first after() delete the entry, so call B reported 0ms — a lie shown next to $rankFusion.
+    const inA = { query: 'a', k: 4 };
+    const inB = { query: 'b', k: 4 };
+    h.beforeToolCall({ toolName: 'hybrid_search', input: inA, context: {} });
+    await new Promise(r => setTimeout(r, 12));
+    h.beforeToolCall({ toolName: 'hybrid_search', input: inB, context: {} });
+    await new Promise(r => setTimeout(r, 12));
+    h.afterToolCall({ toolName: 'hybrid_search', input: inA, context: {}, output: { results: [1] } });
+    await new Promise(r => setTimeout(r, 12));
+    h.afterToolCall({ toolName: 'hybrid_search', input: inB, context: {}, output: { results: [2] } });
+    rec.commitAttempt();
+
+    const [a, b] = rec.drain();
+    expect(a.tool.args.query).toBe('a');
+    expect(b.tool.args.query).toBe('b');
+    expect(a.tool.ms).toBeGreaterThan(0);
+    expect(b.tool.ms).toBeGreaterThan(0);
+    // A started first and finished first, so it must be the shorter of the two.
+    expect(b.tool.ms).toBeGreaterThan(a.tool.ms);
+  });
+
+  it('does not throw when a call input is not an object, and still records the call', async () => {
+    const rec = new ToolCallRecorder();
+    rec.startAttempt();
+    // A WeakMap key must be an object; a primitive/undefined input must degrade, never take the run
+    // down. The recorder's whole contract is that a missing timing loses a number, not the case.
+    await expect(callTool(rec, 'search_text', undefined, { output: { results: [1] } })).resolves.toBeUndefined();
+    await expect(callTool(rec, 'search_text', 'not-an-object', { output: { results: [1] } })).resolves.toBeUndefined();
+    rec.commitAttempt();
+
+    const events = rec.drain();
+    expect(events).toHaveLength(2);
+    for (const e of events) {
+      expect(e.tool.ms).toBeGreaterThanOrEqual(0);
+      expect(e.tool.args).toEqual({});
+    }
+  });
+
+  it('caps an enormous error detail at emit time, so it cannot be baked into the recording', async () => {
+    const rec = new ToolCallRecorder();
+    rec.startAttempt();
+    await callTool(rec, 'trace_funds', { account_id: 'ACC-9' }, { error: new Error('index missing ' + 'x'.repeat(9000)) });
+    rec.commitAttempt();
+
+    const detail = rec.drain()[0].detail as string;
+    expect(detail.length).toBeLessThanOrEqual(MAX_DETAIL_CHARS + 1);   // +1 for the ellipsis
+    expect(detail).toContain('index missing');   // the useful prefix survives
   });
 
   it('counts trace_funds results from network_size, not a results array', async () => {
