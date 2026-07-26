@@ -25,6 +25,10 @@ const paths = {
   policy: '<path d="M7 3.5h7l4 4V20.5H7v-17z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5"/>',
   warn: '<path d="M12 4L2.8 19.5h18.4L12 4z"/><path d="M12 10v4.5M12 17.2v.3"/>',
   flow: '<path d="M4 12h13M13.5 7.5L18 12l-4.5 4.5"/>',
+  // A tool call: the wrench-and-gear grammar of the other step icons, distinct from `reason`'s
+  // square. Without its own entry, icon() falls back to paths.reason and tool events become
+  // visually indistinguishable from model output in the feed.
+  tool: '<path d="M14.5 4.5a4 4 0 0 0 5.2 5.2l-9 9a2.6 2.6 0 0 1-3.7-3.7l9-9z"/><path d="M5.5 5.5l3 3"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/>',
 };
 
 /** Inline SVG for a named icon. `size` in px; stroke inherits currentColor. */

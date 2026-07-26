@@ -176,6 +176,17 @@ try { var q = new URLSearchParams(location.search).get('ui');
   @keyframes sweep { 0%,100%{opacity:.35} 50%{opacity:1} }
   #tnow { font-size:13px; color:var(--ink); margin:10px 0 2px; min-height:20px; display:flex; gap:9px; align-items:baseline; }
   #tnow .ic { color:var(--mongo); } #tnow .d { color:var(--muted); font-size:12px; }
+  /* Dual attribution: Mastra tool on the left, MongoDB operator on the right. The operator is
+     mono + accent because it is the half of the claim the audience is meant to read. */
+  #tnow .tattr { font-family:var(--mono); font-size:12px; color:var(--ink); display:inline-flex; gap:6px; align-items:baseline; flex-wrap:wrap; }
+  #tnow .tattr .sep { color:var(--dim); }
+  #tnow .tattr.bad { color:var(--crit); }
+  /* Running tool-call count on the reason box. Absolute so it cannot change .tstep's height and
+     re-trigger the flex-wrap alignment work the 2026-07-25 reflow settled. */
+  .tpipe .tstep .tbadge { position:absolute; top:-6px; right:-4px; min-width:15px; height:15px; padding:0 3px;
+                          border-radius:999px; background:var(--mongo); color:var(--bg);
+                          font-family:var(--mono); font-size:9px; line-height:15px; text-align:center; }
+  .tpipe .tstep.working { border-color:var(--mongo); color:var(--mongo); }
   #tevid { margin-top:10px; }
   #tevid .section { animation:mount .35s ease; }
   @keyframes mount { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }

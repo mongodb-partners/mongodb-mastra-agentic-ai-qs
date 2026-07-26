@@ -239,10 +239,10 @@ function loadQueueRender() { // re-render from cache without a refetch
 const T_STEPS = ['triage', 'retrieve', 'reason', 'graph', 'govern', 'decide'];
 const STEP_TO_STAGE = { triage: 'triage', retrieve: 'retrieve', recall: 'retrieve', reason: 'reason', graph: 'graph', govern: 'govern', suspend: 'decide', commit: 'decide' };
 const run = { active: false };
-const theater = { caseId: null, stages: new Set(), done: [] };
+const theater = { caseId: null, stages: new Set(), done: [], toolCount: 0 };
 
 function enterTheater() {
-  theater.caseId = null; theater.stages = new Set(); theater.done = [];
+  theater.caseId = null; theater.stages = new Set(); theater.done = []; theater.toolCount = 0;
   $('#tdone').innerHTML = ''; $('#tcase').innerHTML = '<div class="empty">waiting for the first case…</div>';
   showCenter('theater');
 }
@@ -263,8 +263,30 @@ function theaterCaseHead(t, id) {
     <div id="tnow"></div>
     <div id="tevid"></div>`;
 }
+/**
+ * The dual-attribution line: Mastra on the left of the separator, MongoDB on the right.
+ *
+ *   hybrid_search · $rankFusion · 214ms
+ *
+ * This is the moment the whole change is for — it appears DURING the model's thinking window, where
+ * the timeline previously showed one 41-second gap (85% of the recorded run's span). Density tiers
+ * trim right-to-left: the operator is the last thing to go because it is the MongoDB half of the
+ * claim, and on a phone it is the ONLY thing shown.
+ */
+function toolLine(d) {
+  const t = d.tool || {};
+  const name = esc(t.name || 'tool');
+  const op = t.op ? esc(t.op) : '';
+  const ms = Number.isFinite(t.ms) ? `${t.ms}ms` : '';
+  const parts = dense(
+    [name, op, ms],           // full / laptop
+    [name, op],               // tablet
+    [op || name],             // phone — the operator alone
+  ).filter(Boolean);
+  return `<span class="tattr${t.ok === false ? ' bad' : ''}">${parts.join('<span class="sep">·</span>')}</span>`;
+}
 function theaterStart(id) {
-  theater.caseId = id; theater.stages = new Set();
+  theater.caseId = id; theater.stages = new Set(); theater.toolCount = 0;
   $('#tcase').innerHTML = theaterCaseHead(casesById[id], id);
   queueOverlay[id] = 'investigating';
   loadQueueRender();
@@ -288,6 +310,29 @@ function theaterStage(stage, d) {
   });
   const now = $('#tnow');
   if (now) now.innerHTML = `${icon(STEP_ICON[d.step] || 'reason', 15)}<span>${esc(d.headline)}</span><span class="d">${esc(d.detail || '')}</span>`;
+}
+/**
+ * A tool event updates the "now" line and the counter on `reason` — and NOTHING else.
+ *
+ * It deliberately does not call theaterStage(). That function treats its argument as a completed
+ * stage and lights the next one; `tool` belongs to `reason`, which sits after `retrieve`, so routing
+ * a tool event through it would mark reasoning complete while the model is still thinking and stamp
+ * the pipeline ahead of the verdict. Tool calls happen INSIDE the reason stage; they do not advance
+ * past it.
+ */
+function theaterTool(d) {
+  theater.toolCount++;
+  const now = $('#tnow');
+  if (now) {
+    now.innerHTML = `${icon('tool', 15)}${toolLine(d)}<span class="d">${esc(d.detail || '')}</span>`;
+  }
+  const box = document.querySelector('#tcase .tstep[data-stage="reason"]');
+  if (box) {
+    let badge = box.querySelector('.tbadge');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'tbadge'; box.appendChild(badge); }
+    badge.textContent = theater.toolCount;
+    box.classList.add('working');
+  }
 }
 async function theaterTerminal(d) {
   const id = d.transaction_id;
@@ -316,6 +361,7 @@ function renderDoneChips() {
 function theaterEvent(d) {
   if (!run.active || !d.transaction_id) return;
   if (d.transaction_id !== theater.caseId) theaterStart(d.transaction_id);
+  if (d.step === 'tool') { theaterTool(d); return; }   // never reaches theaterStage — see theaterTool
   const stage = STEP_TO_STAGE[d.step];
   if (stage) theaterStage(stage, d);
   if (d.step === 'suspend' || d.step === 'commit') theaterTerminal(d);
@@ -484,7 +530,7 @@ async function resolve(id, decision) {
 }
 
 // ---- feed -------------------------------------------------------------------
-const STEP_ICON = { triage: 'triage', retrieve: 'retrieve', recall: 'recall', reason: 'reason', graph: 'graph', govern: 'govern', suspend: 'suspend', commit: 'commit', reset: 'reset', human: 'human' };
+const STEP_ICON = { triage: 'triage', retrieve: 'retrieve', recall: 'recall', reason: 'reason', tool: 'tool', graph: 'graph', govern: 'govern', suspend: 'suspend', commit: 'commit', reset: 'reset', human: 'human' };
 function addFeed(ico, actor, id, headline, step, detail) {
   const feed = $('#feed');
   const it = document.createElement('div');
