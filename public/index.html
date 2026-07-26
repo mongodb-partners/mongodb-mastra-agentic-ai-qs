@@ -86,7 +86,14 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #status { font-family:var(--mono); font-size:12px; color:var(--mongo); }
   #themeBtn { display:inline-flex; align-items:center; gap:6px; }
   #themeBtn .ticon { font-size:13px; line-height:1; }
-  #top #modeBtn { display:inline-flex; align-items:center; gap:6px; }
+  /* :not([hidden]) is load-bearing, not decoration. renderReplayControls() shows and hides these two
+     by toggling the `hidden` ATTRIBUTE, which works via the UA rule `[hidden] { display:none }` — a
+     rule any author `display` declaration outranks, whatever its specificity. So the plain
+     `#top #modeBtn { display:inline-flex }` this replaces re-showed the button permanently: the demo
+     boxes sat idle with a phantom "▶ PLAYING" control in the top bar, on BOTH tracks, from the
+     moment the step-through feature landed. #stepBtn had no display rule and so obeyed `hidden`
+     correctly — that asymmetry is what made it look like a JS bug rather than a CSS one. */
+  #top #modeBtn:not([hidden]) { display:inline-flex; align-items:center; gap:6px; }
   #top #modeBtn .micon { font-size:10px; }
   #top #modeBtn.stepping { border-color:var(--warn); color:var(--warn); }
   .btn { font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--border);
@@ -284,7 +291,31 @@ try { var q = new URLSearchParams(location.search).get('ui');
   #stats { display:flex; gap:14px; align-items:center; white-space:nowrap; }
   #stats span { color:var(--dim); } #stats b { color:var(--ink); font-weight:600; }
   #stats .good { color:var(--accent); }
-  #counters span { color:var(--dim); margin-right:15px; } #counters b { color:var(--ink); }
+  /* The live write counters. This was a bare <div>, so the inline spans inherited #bottom's
+     `font-size:12px` line box and wrapped INSIDE a 40px bar that is `align-items:center` — three
+     rows of text overlapping each other in 14px of space. On the live box that rendered as
+     "agent_events 35reviews 2cases 4case_analysis 4…": `margin-right:15px` was there, but a
+     wrapped line's trailing margin collapses at the break, so the spans that landed at the start
+     of rows 2 and 3 sat flush against the previous one and every row drew on top of the others.
+     Measured at 1440px: seven spans, all reporting left edge 872 or 894, gaps of -73 to -182px.
+
+     flex + gap replaces the margin (no trailing-margin-at-a-break case to get wrong) and nowrap
+     keeps it on the bar's single line. min-width:0 + hidden is the other half: the seven counters
+     want 727px, and #stats already takes 698px of a 1416px bar, so an unconstrained flex item
+     pushed #auditChip and #credit clean off the right edge (measured chip right 1689 against a bar
+     ending at 1428). Now the counter list is what gets truncated when the bar runs out — it is a
+     progress trickle, not the integrity readout. On the tablet/phone tiers #bottom wraps, so the
+     list gets its own row and truncates nothing.
+
+     The two flex-shrink values decide WHICH item gives way, and the ordering is the point: on a full
+     bar during a live run something has to. Letting the counters shrink (1) while #auditChip and
+     #credit refuse to (0) is deliberate — an unpinned chip re-wrapped "audit chain verified" into
+     three stacked lines inside the 40px bar. The audit chip is the demo's integrity claim and the
+     one line in the bar that must stay legible; a per-collection write tally is the thing worth
+     clipping. */
+  #counters { display:flex; gap:14px; align-items:center; white-space:nowrap; min-width:0; overflow:hidden; flex-shrink:1; }
+  #counters span { color:var(--dim); } #counters b { color:var(--ink); }
+  #auditChip, #credit { flex-shrink:0; white-space:nowrap; }
 
   /* stage banner (policy-updated-live / audit alarm) */
   #banner { position:fixed; top:76px; left:50%; transform:translateX(-50%) translateY(-8px); z-index:800; display:none;
@@ -392,6 +423,21 @@ try { var q = new URLSearchParams(location.search).get('ui');
     :root:not([data-ui="classic"]) #hud { grid-template-rows:58px 74px auto minmax(0,1fr) auto; }
     :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:8px 14px; gap:6px 14px; }
     :root:not([data-ui="classic"]) #stats { flex-wrap:wrap; white-space:normal; gap:6px 12px; }
+    /* #top has the same problem the bar had, and worse: it is `nowrap` and the one control the whole
+       demo turns on is LAST in it. Measured at 820px as shipped: #top ends at 808 and #launchBtn
+       occupies 783..937 — 129px of the primary call to action past the right edge, and
+       elementFromPoint at its centre returns null because that point is outside the viewport
+       entirely. This tier is one of the two the room may actually hold up (iPad; iPhone in
+       landscape), so it is not a corner case.
+
+       Shed the tagline pill rather than shrink the button: it is the lowest-value item in the bar
+       (the brand beside it already says MARSHAL) and it alone is worth 122px of the 129 needed —
+       hiding it puts the button at 580..789, inside the bar with 19px to spare. The phone tier
+       already drops the same pill for the same reason. #status keeps its place but stops being
+       allowed to grow: it is set from run copy at runtime ("Replaying a recorded run of the real
+       agent"), so leaving it to size itself would re-create the overflow on the first Launch. */
+    :root:not([data-ui="classic"]) #top .tag { display:none; }
+    :root:not([data-ui="classic"]) #status { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   }
   @media (max-width:759px) {
     :root:not([data-ui="classic"]) body { overflow-y:auto; overflow-x:hidden; }
