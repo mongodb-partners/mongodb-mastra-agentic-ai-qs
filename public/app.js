@@ -371,6 +371,10 @@ function endRun() {
   run.active = false;
   clearTimeout(replayTimer);
   replayState = null;
+  // Back to the default mode, not the one the last presenter left behind: a box that finished a
+  // stepped run with replayMode='step' renders exactly one event on the NEXT Launch and freezes,
+  // because nothing arms the timer. One presenter interaction would strand an unattended box.
+  replayMode = 'play';
   renderReplayControls();
   const b = $('#launchBtn'); b.disabled = false; renderLaunchLabel();
   const held = theater.done.filter(c => c.outcome === 'held').length;
@@ -775,7 +779,13 @@ function replayTick() {
   (d.capabilities || (d.capability ? [d.capability] : [])).forEach(bumpCap);
   theaterEvent(d);
   renderReplayControls();
-  if (replayMode !== 'play') return;   // the presenter is the clock now
+  // The presenter is the clock — but only while there is still something to step TO. After the last
+  // event renderReplayControls disables #stepBtn (left <= 0), so in step mode nothing would ever
+  // call tick() again and the run would never reach the endRun() at the top of the next tick:
+  // #launchBtn stays disabled and Reset becomes the only way out. Arming the terminal dwell in both
+  // modes cannot race the presenter's stepping, because there is no remaining event for a Step to
+  // render — all this last tick can do is end the run, on the single existing advance path.
+  if (replayMode !== 'play' && st.at < st.order.length) return;
   // Still dwell after the LAST event (replayDwellMs falls back to the terminal floor when there is
   // no next event) so the closing verdict stamp is readable before `endRun` swaps in the summary.
   replayTimer = setTimeout(replayTick, replayDwellMs(st.events, ix, st.speed));
@@ -802,10 +812,14 @@ function renderReplayControls() {
 /** Switch between auto-play and manual stepping, re-arming from the CURRENT cursor either way. */
 function setReplayMode(next) {
   replayMode = next;
-  clearTimeout(replayTimer);
+  // With the cursor exhausted the armed timer is the terminal dwell — the run's ONLY remaining path
+  // to endRun(). Cancelling it because someone paused on the closing stamp would deadlock exactly
+  // the way stepping past the last event used to.
+  const exhausted = !!replayState && replayState.at >= replayState.order.length;
+  if (!exhausted) clearTimeout(replayTimer);
   renderReplayControls();
   // Resuming play continues from wherever stepping left the cursor — the recording is not restarted.
-  if (next === 'play' && run.active && replayState) replayTick();
+  if (next === 'play' && run.active && replayState && !exhausted) replayTick();
 }
 
 function renderLaunchLabel() {
