@@ -35,24 +35,36 @@ describe('replay_analysis fixture', () => {
     expect(n).toBe(20);
   });
 
-  it('stores every ring edge amount as Decimal128', () => {
+  it('keeps every ring edge amount readable as money in either representation', () => {
+    // NOT Decimal128, and that is correct. `RetrievalService.traceFundsGraph` builds these edges
+    // with `Number(e.amount)` on purpose (see its comment): they go to the browser as JSON and into
+    // ringSvg for coordinate arithmetic. So a recording captured from a live run carries plain
+    // numbers here even on a fully migrated database, while the same field in an OLDER recording is
+    // Decimal128 because `migrate-amount-decimal.ts` converted it in place.
+    //
+    // Asserting Decimal128 here pinned the migration's output rather than the app's contract, so it
+    // failed the moment the recording was re-captured from a real run. The contract the app actually
+    // relies on is that both forms decode — `moneyValue` in public/app.js handles the extended-JSON
+    // wrapper and the bare number, and nothing server-side does arithmetic on this path.
     let n = 0;
     for (const d of docs) for (const e of d.ring?.edges ?? []) {
       if (e.amount === undefined) continue;
-      expect(e.amount).toBeInstanceOf(Decimal128);
+      const v = e.amount instanceof Decimal128 ? Number(e.amount.toString()) : Number(e.amount);
+      expect(Number.isFinite(v) && v > 0, `${d.transaction_id} edge ${e.from}->${e.to}`).toBe(true);
       n++;
     }
     expect(n).toBe(7);
   });
 
-  it('scales every converted amount to exactly two places', () => {
+  it('scales every Decimal128 amount to exactly two places', () => {
+    // Scoped to the paths the server writes as Decimal128 — top-level and precedents. Ring edges are
+    // excluded for the reason above: a bare number has no scale to assert.
     const all: Decimal128[] = [];
     for (const d of docs) {
       if (d.amount) all.push(d.amount);
       for (const p of d.precedents ?? []) if (p.amount) all.push(p.amount);
-      for (const e of d.ring?.edges ?? []) if (e.amount) all.push(e.amount);
     }
-    expect(all).toHaveLength(33);
+    expect(all).toHaveLength(26);
     for (const a of all) expect(a.toString()).toMatch(/^\d+\.\d\d$/);
   });
 });
@@ -78,8 +90,27 @@ describe('hashed snapshots are untouched', () => {
 describe('replay_events fixture', () => {
   const docs = load('replay_events');
 
-  it('has the expected document count', () => {
-    expect(docs).toHaveLength(49);
+  // Deliberately NOT a document count. The total is a property of whichever run was captured — tool
+  // calls in particular vary with what the model decided to call, so re-baking the recording from a
+  // genuine live run moved it 49 → 51 and failed a test that was pinning an accident. What must hold
+  // is the SHAPE: every pending case triaged, governed, and reaching exactly one terminal step.
+  it('covers every case from triage through exactly one terminal step', () => {
+    const byStep = (s: string) => docs.filter(d => d.step === s);
+    const cases = new Set(docs.map(d => d.transaction_id));
+    expect(cases.size).toBe(6);
+    expect(byStep('triage')).toHaveLength(6);
+    expect(byStep('govern')).toHaveLength(6);
+    // commit = decided outright, suspend = held for a human. Together they account for all six, and
+    // no case may appear in both.
+    const terminal = [...byStep('commit'), ...byStep('suspend')].map(d => d.transaction_id);
+    expect(terminal).toHaveLength(6);
+    expect(new Set(terminal).size).toBe(6);
+    // The sanctions lane is a deterministic hard reject BEFORE any LLM call (decision/core.ts), so
+    // that case legitimately has no retrieve/reason/graph events. Hence 5, not 6.
+    for (const step of ['retrieve', 'reason', 'graph', 'recall']) {
+      expect(byStep(step), step).toHaveLength(5);
+    }
+    expect(docs.filter(d => d.step === 'tool').length).toBeGreaterThan(0);
   });
 
   it('formats triage amounts with cents, matching the live run-engine', () => {
