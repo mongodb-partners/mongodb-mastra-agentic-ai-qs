@@ -12,7 +12,6 @@ export interface Config {
   llmGatewayApiKey?: string;
   bedrockRegion?: string;
   port: number;
-  rrfK: number;
   /** HMAC secret for the append-only audit chain. Host-side only; never stored in records. */
   auditSecret: string;
   /** SEPARATE HMAC secret for signing/verifying session tokens (not reused for the audit chain). */
@@ -56,7 +55,11 @@ const EnvSchema = z.object({
   LLM_GATEWAY_API_KEY: z.string().optional(),
   BEDROCK_REGION: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(8000),
-  RRF_K: z.coerce.number().int().positive().default(60),
+  // No RRF_K. `$rankFusion` does not expose the reciprocal-rank constant — MongoDB fixes it
+  // server-side — so the setting was loaded, validated and then read by nothing. A knob that cannot
+  // affect anything is worse than no knob: an operator tunes it, measures no change, and mistrusts
+  // the rest of the configuration. Fusion weighting is controlled by the per-branch limits in
+  // buildRankFusionPipeline instead.
   // Secrets: no schema default. A dev fallback is applied in loadConfig ONLY for non-production /
   // demo runs; production with a live agent must set real secrets or startup fails (see below).
   AUDIT_SECRET: z.string().optional(),
@@ -109,7 +112,6 @@ export function loadConfig(
     llmGatewayApiKey: e.LLM_GATEWAY_API_KEY,
     bedrockRegion: e.BEDROCK_REGION,
     port: e.PORT,
-    rrfK: e.RRF_K,
     auditSecret,
     sessionSecret,
     demoMode,

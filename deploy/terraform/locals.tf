@@ -58,7 +58,6 @@ locals {
     LLM_PROVIDER     = var.llm_provider
     LLM_MODEL        = var.llm_model
     LLM_BASE_URL     = var.llm_base_url
-    RRF_K            = var.rrf_k
     SEED_SCALE_COUNT = var.seed_scale_count
     DEMO_MODE        = var.demo_mode
     NODE_ENV         = var.node_env

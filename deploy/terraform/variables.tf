@@ -172,11 +172,6 @@ variable "llm_base_url" {
   default     = ""
 }
 
-variable "rrf_k" {
-  type    = string
-  default = "60"
-}
-
 variable "seed_scale_count" {
   description = "Size of the synthetic decided-precedent corpus seeded at provision time (the deployment-at-scale story)."
   type        = string

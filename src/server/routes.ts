@@ -151,7 +151,8 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
       return c.json({ status: 'committed', decision: body.decision, scope: 'session' });
     }
 
-    // No session (single-user): commit to the shared ledger with full verification.
+    // LIVE mode: commit to the shared ledger with full verification. (A valid session is already
+    // required above — this is the single-writer quickstart path, not an anonymous one.)
     // Concurrency guard (review finding #5): atomically claim the review by transitioning
     // pending_review -> resolving. Only the first concurrent caller wins; a loser sees no pending
     // review and returns 409, so a case can't be double-committed.

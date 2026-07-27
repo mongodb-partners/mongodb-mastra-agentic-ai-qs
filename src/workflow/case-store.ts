@@ -20,8 +20,12 @@ export interface CommitInput {
 /**
  * Commit a decided case in ONE multi-document ACID transaction: flip the case status, insert the
  * immutable decision, and append a hash-chained audit event — all-or-nothing on one cluster.
- * Requires a transactional client (`db.client`). The audit append inside the txn uses the same
- * chain but reads the tail outside session for simplicity (append-only; the record is inserted in-txn).
+ * Requires a transactional client (`db.client`).
+ *
+ * The audit append runs FULLY inside the transaction — `AuditStore.append` takes the session, so the
+ * tail read and the insert are both session-scoped. That is what makes the chain safe under
+ * concurrent commits: two transactions reading the same tail conflict on write and one aborts and
+ * retries against the new tail, instead of both chaining to it and forking the chain.
  */
 export async function commitCaseDecision(db: Db, auditSecret: string, input: CommitInput): Promise<void> {
   const client = (db as any).client;

@@ -42,7 +42,12 @@ async function main() {
     await provisionGraphIndexes(db);
 
     const embedder = getQueryEmbedder(cfg);
-    const embed = (texts: string[]) => Promise.all(texts.map(t => embedder.embedQuery(t)));
+    // `embedDocuments`, not a map of `embedQuery`: these curated transactions are stored documents,
+    // and Voyage's asymmetric models embed differently for `inputType: 'query'` vs `'document'`.
+    // Embedding a stored doc as a query put the 15 curated cases in a slightly different space from
+    // the synthetic corpus below (which always used embedDocuments), so their retrieval scores were
+    // not directly comparable. It also batches, instead of one HTTP round-trip per case.
+    const embed = (texts: string[]) => embedder.embedDocuments(texts);
     const written = await seedTransactions(db.collection(TRANSACTIONS_COLLECTION) as any, embed);
     logger.info('seeded transactions', { written });
 

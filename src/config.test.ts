@@ -13,13 +13,19 @@ describe('loadConfig', () => {
   it('requires MONGODB_URI', () => {
     expect(() => loadConfig({ VOYAGE_API_KEY: 'vk' })).toThrow(/MONGODB_URI/);
   });
-  it('defaults db, provider, model, port, rrfK', () => {
+  it('defaults db, provider, model, port', () => {
     const c = loadConfig(base);
     expect(c.mongoDb).toBe('marshal');
     expect(c.llmProvider).toBe('anthropic');
     expect(c.llmModel).toBe('claude-haiku-4-5');
     expect(c.port).toBe(8000);
-    expect(c.rrfK).toBe(60);
+  });
+
+  it('ignores a stale RRF_K in the environment instead of failing to boot', () => {
+    // Deployed boxes still have RRF_K in their SSM-sourced .env. An unknown key must pass straight
+    // through (the schema is not strict), or removing the setting would break every existing box.
+    expect(() => loadConfig({ ...base, RRF_K: '60' })).not.toThrow();
+    expect('rrfK' in loadConfig({ ...base, RRF_K: '60' })).toBe(false);
   });
   it('demoMode defaults off and turns on for true/1', () => {
     expect(loadConfig(base).demoMode).toBe(false);
