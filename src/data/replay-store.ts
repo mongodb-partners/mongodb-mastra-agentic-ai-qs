@@ -58,7 +58,47 @@ export function recordingSource(demoMode: boolean): RecordingSource {
  * holding look-alike documents would let `checkReplayHealth`'s dangling-id check pass while every
  * cited id silently pointed at something else.
  */
-export interface ReplayMeta {
+/**
+ * Who produced the recording — the three things its numbers are not portable across.
+ *
+ * The recording is not just a script of what happened; demo mode publishes its timings as
+ * `latency_p50_ms` and its per-stage tail in the status bar. Those are performance claims, and a
+ * performance claim without provenance cannot be checked or reproduced. `corpus_size` alone answers
+ * "at what scale" and leaves "on what hardware, at what revision, with which model" unanswerable.
+ *
+ * This is the same discipline `buildManifest` already applies to the benchmark corpus
+ * (scripts/bench-corpus.ts): tier and app commit travel WITH the artifact, because the artifact
+ * outlives the shell session that knows them. Measured cost of not doing it: attributing the
+ * 2026-07-27 recording meant reading `git reflog` on the box and matching a checkout timestamp
+ * against `recorded_at` — recoverable that day, and not recoverable after the box is replaced.
+ *
+ * Every field is a plain string, 'unknown' when it could not be determined, and never absent — on
+ * the way in AND on the way out (`readReplayMeta` fills it for artifacts baked before these fields
+ * existed). A caller reading `meta.app_commit` must get something printable without a guard;
+ * 'unknown' is a legible answer to "which commit?" and `undefined` renders as a blank where a reader
+ * would take the absence for a value.
+ */
+export interface ReplayProvenance {
+  /** App commit the recording was produced at — short hash, or 'unknown'. */
+  app_commit: string;
+  /**
+   * Atlas tier of the source cluster (e.g. 'M30'), or 'unknown'.
+   *
+   * Load-bearing for the same reason `benchmark_tier` is: a second 1M vector index on one M30 moved
+   * an untouched index's p50 from 21.0 to 179.6 ms. Latency read off a recording says nothing
+   * without the tier it was read on.
+   */
+  atlas_tier: string;
+  /**
+   * LLM that produced the verdicts, from `LLM_MODEL`.
+   *
+   * The dominant term in the recorded span — a full run is ~10.4 s, of which the model is most —
+   * so a recording re-baked on a different model is a different measurement, not a fresher one.
+   */
+  llm_model: string;
+}
+
+export interface ReplayMeta extends ReplayProvenance {
   /** Documents in `transactions` on the cluster the recording was produced against. */
   corpus_size: number;
   /**
@@ -82,7 +122,9 @@ export const REPLAY_META_COLLECTION = 'replay_meta';
  * preserving `_id`), then record the run's provenance. Idempotent — safe to run after every bake.
  * Returns per-collection doc counts.
  */
-export async function snapshotReplay(db: Db): Promise<Record<string, number>> {
+export async function snapshotReplay(
+  db: Db, provenance: ReplayProvenance,
+): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const src of RECORDING_COLLECTIONS) {
     const dst = REPLAY_COLLECTIONS[src];
@@ -103,6 +145,9 @@ export async function snapshotReplay(db: Db): Promise<Record<string, number>> {
     decided_precedents: await tx.countDocuments({ status: { $in: [...DECIDED_STATUSES] } }),
     source_db: db.databaseName,
     recorded_at: new Date(),
+    // Passed in rather than discovered here: the commit comes from git and the tier from the Atlas
+    // Admin API, and this function must stay pure Db access so it is testable without either.
+    ...provenance,
   };
   await db.collection(REPLAY_META_COLLECTION).deleteMany({});
   await db.collection(REPLAY_META_COLLECTION).insertOne(meta as never);
@@ -122,5 +167,17 @@ export async function readReplayMeta(db: Db): Promise<ReplayMeta | null> {
   const doc = await db.collection(REPLAY_META_COLLECTION)
     .findOne<ReplayMeta>({}, { projection: { _id: 0 } })
     .catch(() => null);
-  return doc && Number.isFinite(doc.corpus_size) ? doc : null;
+  if (!doc || !Number.isFinite(doc.corpus_size)) return null;
+  // Provenance is newer than `corpus_size`, so an artifact can carry the scale and not the rest.
+  // Filled here rather than at each call site: the interface promises three printable strings, and a
+  // reader that has to guard every field will eventually forget one and render a blank. Written as
+  // per-field `??` rather than a defaults-then-spread literal because the type says these fields are
+  // present — so the compiler flags the literal form as dead, while `??` states the actual runtime
+  // fact, which is that an old document simply does not have them.
+  return {
+    ...doc,
+    app_commit: doc.app_commit ?? 'unknown',
+    atlas_tier: doc.atlas_tier ?? 'unknown',
+    llm_model: doc.llm_model ?? 'unknown',
+  };
 }

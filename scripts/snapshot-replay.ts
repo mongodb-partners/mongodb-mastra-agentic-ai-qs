@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb';
 import { loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
 import { RECORDING_COLLECTIONS, snapshotReplay } from '../src/data/replay-store';
+import { collectProvenance } from './replay-provenance';
 
 /**
  * Freeze the run that is ALREADY in the working collections into the immutable `replay_*` copies.
@@ -20,6 +21,11 @@ import { RECORDING_COLLECTIONS, snapshotReplay } from '../src/data/replay-store'
  * The recorded corpus size is captured here too (see ReplayMeta), which is why capturing on the box
  * that holds the corpus matters: the scale travels with the artifact, so the cluster that later
  * replays it does not need the corpus at all.
+ *
+ * Provenance flags, both optional and both recorded as 'unknown' when omitted:
+ *   --commit <sha>   the app commit that produced the run. Pass it when running in the container:
+ *                    the image excludes `.git`, so git cannot answer there.
+ *   --tier <M30>     the source cluster's Atlas tier, which the recorded timings are only valid at.
  *
  * Pair with `pnpm export:replay` to get the artifact off the box.
  */
@@ -54,7 +60,22 @@ async function main() {
     }
     logger.info('snapshotting the current live run', { db: cfg.mongoDb, ...present });
 
-    const counts = await snapshotReplay(db);
+    const provenance = collectProvenance({
+      argv: process.argv.slice(2), env: process.env, llmModel: cfg.llmModel,
+    });
+    // Logged before the write, and at warn when anything is missing: 'unknown' is a supported value
+    // but a silent one, and the moment to notice is while the operator is still at the prompt — after
+    // the export it is committed into the artifact and only a re-bake can change it.
+    const missing = Object.entries(provenance).filter(([, v]) => v === 'unknown').map(([k]) => k);
+    if (missing.length) {
+      logger.warn('recording provenance incomplete — pass --commit / --tier to attribute it', {
+        missing, ...provenance,
+      });
+    } else {
+      logger.info('stamping recording provenance', { ...provenance });
+    }
+
+    const counts = await snapshotReplay(db, provenance);
     logger.info('replay snapshot written (demo mode reads these; live runs never touch them)', counts);
   } finally {
     await client.close();

@@ -84,10 +84,17 @@ async function main() {
   // the recorded corpus is. Reported rather than warned about, per the call-site comment in
   // src/data/replay-health.ts.
   if (health.recordedCorpusSize !== null) {
+    // Provenance printed here and not only in the bake log: the bake happened on another box, on
+    // another day, and this is the first time the operator standing up the demo sees what they just
+    // restored. It is also the answer to "are the latency numbers on this console current?" — a
+    // commit far behind HEAD, or a tier that no longer matches, is visible in one line.
+    const meta = await readReplayMeta(db);
     logger.info('recording carries its own corpus size — demo mode reports the recorded run', {
       recorded_corpus: health.recordedCorpusSize,
       local_corpus: health.corpusSize,
       cited_ids_absent_locally: health.danglingIds.length,
+      recorded_at: meta?.recorded_at,
+      app_commit: meta?.app_commit, atlas_tier: meta?.atlas_tier, llm_model: meta?.llm_model,
     });
   }
 

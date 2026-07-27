@@ -50,6 +50,8 @@ describe('recordingSource', () => {
   });
 });
 
+const PROV = { app_commit: 'abc1234', atlas_tier: 'M30', llm_model: 'claude-haiku-4-5' };
+
 describe('snapshotReplay — the recording carries its own scale', () => {
   const corpus = [
     { transaction_id: 'a', status: 'approved' }, { transaction_id: 'b', status: 'rejected' },
@@ -60,7 +62,7 @@ describe('snapshotReplay — the recording carries its own scale', () => {
   it('records the source corpus size and decided count alongside the copies', async () => {
     const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus, agent_events: [{ _id: 1 }] });
 
-    const counts = await snapshotReplay(db);
+    const counts = await snapshotReplay(db, PROV);
 
     const meta = await readReplayMeta(db);
     expect(meta).toMatchObject({ corpus_size: 5, decided_precedents: 3, source_db: 'marshal_1m' });
@@ -73,19 +75,34 @@ describe('snapshotReplay — the recording carries its own scale', () => {
     // `pending` and `review` are undecided; anything else would make the recorded and live figures
     // two different measurements presented as one number.
     const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus });
-    await snapshotReplay(db);
+    await snapshotReplay(db, PROV);
     expect((await readReplayMeta(db))!.decided_precedents).toBe(3);
+  });
+
+  it('stamps the commit, tier and model the run was produced at', async () => {
+    // The recording's timings are published as latency_p50_ms and the per-stage tail, so they are
+    // performance claims — and a claim whose commit, hardware tier and model are unrecorded cannot be
+    // checked. Attributing the 2026-07-27 recording took a `git reflog` on the box and a timestamp
+    // match against recorded_at; after that box is replaced it would not have been recoverable.
+    const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus });
+
+    await snapshotReplay(db, PROV);
+
+    expect(await readReplayMeta(db)).toMatchObject(PROV);
   });
 
   it('overwrites the previous provenance rather than accumulating one doc per bake', async () => {
     const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus });
-    await snapshotReplay(db);
+    await snapshotReplay(db, PROV);
     db.store[TRANSACTIONS_COLLECTION] = corpus.slice(0, 2);
 
-    await snapshotReplay(db);
+    await snapshotReplay(db, { ...PROV, app_commit: 'def5678' });
 
     expect(db.store[REPLAY_META_COLLECTION]).toHaveLength(1);
     expect((await readReplayMeta(db))!.corpus_size).toBe(2);
+    // The provenance is replaced too, not merged with the prior bake's: a doc naming the old commit
+    // beside the new corpus size would attribute this recording to code that did not produce it.
+    expect((await readReplayMeta(db))!.app_commit).toBe('def5678');
   });
 });
 
@@ -103,5 +120,24 @@ describe('readReplayMeta', () => {
   it('returns null instead of throwing when the read fails', async () => {
     const db = { collection: () => ({ findOne: () => Promise.reject(new Error('not authorized')) }) } as any;
     expect(await readReplayMeta(db)).toBeNull();
+  });
+
+  it("reports 'unknown' provenance for an artifact baked before those fields existed", async () => {
+    // A restore of the pre-provenance artifact must still hand callers three printable strings.
+    // `undefined` renders as a blank in a log line or a status bar, and a blank next to "commit" reads
+    // as a value rather than as an absence.
+    const db = memDb({ [REPLAY_META_COLLECTION]: [{ corpus_size: 12_015, source_db: 'marshal' }] });
+
+    expect(await readReplayMeta(db)).toMatchObject({
+      corpus_size: 12_015, app_commit: 'unknown', atlas_tier: 'unknown', llm_model: 'unknown',
+    });
+  });
+
+  it('does not overwrite recorded provenance with the defaults', async () => {
+    // The spread order is the whole behaviour: defaults first, doc second. Reversed, every restored
+    // recording would report 'unknown' no matter what was baked into it.
+    const db = memDb({ [REPLAY_META_COLLECTION]: [{ corpus_size: 5, source_db: 'x', ...PROV }] });
+
+    expect(await readReplayMeta(db)).toMatchObject(PROV);
   });
 });

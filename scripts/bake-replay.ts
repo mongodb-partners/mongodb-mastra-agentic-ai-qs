@@ -4,6 +4,7 @@ import { logger } from '../src/observability/logger';
 import { runPendingInvestigations } from '../src/workflow/run-engine';
 import { loadTransactionSeed } from '../src/ingestion/transaction-fixtures';
 import { snapshotReplay } from '../src/data/replay-store';
+import { collectProvenance } from './replay-provenance';
 
 /**
  * Bake the deterministic demo replay: run the REAL agent pipeline once over every live case, then
@@ -12,6 +13,9 @@ import { snapshotReplay } from '../src/data/replay-store';
  *
  * Run this once at seed time (after `pnpm provision`), on the operator's machine / CI — not per
  * user. Idempotent: it resets prior run state, restores cases to pending, investigates, snapshots.
+ *
+ * Takes the same optional `--commit` / `--tier` provenance flags as `pnpm snapshot:replay`; see that
+ * script's header and ReplayProvenance for what they are for.
  */
 async function main() {
   try { process.loadEnvFile(); } catch { /* .env optional */ }
@@ -36,8 +40,14 @@ async function main() {
   const analyses = await db.collection('case_analysis').countDocuments();
   logger.info('bake complete', { investigated, agent_events: events, case_analysis: analyses });
 
-  // Freeze the recording into the immutable replay copies demo mode reads from.
-  const snapshot = await snapshotReplay(db);
+  // Freeze the recording into the immutable replay copies demo mode reads from, stamped with what
+  // produced it — the timings about to be published as latency claims are only valid at this commit,
+  // tier and model.
+  const provenance = collectProvenance({
+    argv: process.argv.slice(2), env: process.env, llmModel: cfg.llmModel,
+  });
+  logger.info('stamping recording provenance', { ...provenance });
+  const snapshot = await snapshotReplay(db, provenance);
   logger.info('replay snapshot written (demo mode reads these; live runs never touch them)', snapshot);
 
   await client.close();
