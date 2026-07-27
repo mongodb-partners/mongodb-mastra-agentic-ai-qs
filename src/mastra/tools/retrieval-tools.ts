@@ -39,14 +39,39 @@ export function buildRetrievalTools(svc: RetrievalService) {
     execute: async (input: any) => ({ results: await svc.hybrid(input.query, input.k ?? 5) }),
   });
 
+  /**
+   * Ceiling on the traversal depth the AGENT may request.
+   *
+   * Was 6. `$graphLookup` holds its visited set in memory under a hard 100 MB limit that it cannot
+   * spill to disk, and the closure widens fast: measured against 1M documents on arbitrary corpus
+   * accounts, depth 4 failed 15% of traversals with code 40099, depth 5 40%, and depth 6 50% —
+   * while the successful ones ran 1.2 s at p50 and 3.4 s at p99. Depth 3 is the pipeline default,
+   * is what `run-engine.ts` calls for its own trace, and is what the corpus topology
+   * (`COMMUNITY_SIZE`) was sized to keep bounded, so nothing the app needs lives above it.
+   *
+   * The service degrades a 40099 to an empty chain rather than failing the case
+   * (`RetrievalService.graphChain`), so this cap is about not spending seconds on a traversal that
+   * usually returns nothing — not about correctness. Lowering the schema bound also tells the model
+   * the real limit: declaring 6 while quietly clamping to 3 would discard what it asked for without
+   * saying so.
+   */
+  const MAX_TRACE_DEPTH = 3;
+
   const traceFunds = createTool({
     id: 'trace_funds',
     description: "Trace the sender account's transfer network for circular-flow / mule / layering patterns (graph traversal).",
     inputSchema: z.object({
       account_id: z.string().describe("the sender's account_number to trace from"),
-      max_depth: z.number().int().positive().max(6).optional(),
+      max_depth: z.number().int().positive().max(MAX_TRACE_DEPTH).optional()
+        .describe(`how many hops to follow (1-${MAX_TRACE_DEPTH}, default ${MAX_TRACE_DEPTH})`),
     }),
-    execute: async (input: any) => svc.traceFunds(input.account_id, input.max_depth ?? 3),
+    // The zod `max` is the real enforcement — Mastra validates inputSchema before calling execute,
+    // so an over-deep request returns a corrective error to the model and never runs. The clamp is
+    // belt-and-braces for any caller that invokes execute directly (tests, a future non-agent
+    // path), where nothing would otherwise bound the depth.
+    execute: async (input: any) => svc.traceFunds(
+      input.account_id, Math.min(input.max_depth ?? MAX_TRACE_DEPTH, MAX_TRACE_DEPTH),
+    ),
   });
 
   const recallVerdicts = createTool({
