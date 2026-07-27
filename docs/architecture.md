@@ -24,23 +24,7 @@ There is no second datastore, no vector sidecar, no search cluster, and no queue
 
 ## Level 1: system context
 
-```mermaid
-graph TB
-    reviewer["Investigator / reviewer<br/><i>Person</i><br/>Launches runs, resolves held cases"]
-
-    marshal["<b>Marshal</b><br/><i>Software system</i><br/>Investigates flagged transactions,<br/>decides or escalates, records<br/>a tamper-evident audit trail"]
-
-    atlas["MongoDB Atlas<br/><i>Managed database</i><br/>Stores transactions, cases, policies<br/>and the audit chain; serves vector,<br/>lexical, hybrid and graph retrieval"]
-
-    voyage["Voyage AI embeddings<br/><i>External API</i><br/>Turns narratives and queries<br/>into 1024-dim vectors"]
-
-    llm["LLM provider<br/><i>External API</i><br/>Anthropic, OpenAI-compatible,<br/>or Amazon Bedrock"]
-
-    reviewer -->|"reads the case queue over HTTPS,<br/>approves or rejects held cases"| marshal
-    marshal -->|"reads and writes documents,<br/>runs retrieval, watches change streams"| atlas
-    marshal -->|"embeds narratives and queries"| voyage
-    marshal -->|"asks for an investigation verdict<br/>and a policy-violation verdict"| llm
-```
+![Level 1 system context: the investigator, Marshal, MongoDB Atlas, Voyage AI embeddings and the LLM provider](images/01-system-context.png)
 
 Two things are worth noticing about this level.
 
@@ -56,28 +40,7 @@ model means re-embedding in the same commit.
 
 ## Level 2: containers
 
-```mermaid
-graph TB
-    reviewer["Investigator / reviewer<br/><i>Person</i>"]
-
-    subgraph host["Single host (Docker on EC2, or a laptop)"]
-        nginx["Reverse proxy<br/><i>nginx</i><br/>Terminates HTTP on :80,<br/>proxies to the app and holds<br/>SSE connections open"]
-        api["<b>Control-room API</b><br/><i>Node 22, Hono, TypeScript run by tsx</i><br/>Serves the SPA, exposes the case API,<br/>runs the investigation pipeline,<br/>projects change streams as SSE"]
-        spa["<b>Console SPA</b><br/><i>Vanilla ES modules, no framework, no build</i><br/>Case queue, live event feed, capability rail,<br/>case detail, human-review gate"]
-    end
-
-    atlas["MongoDB Atlas<br/><i>Replica set, M10 and up</i><br/>13 collections, 4 Atlas Search indexes"]
-    voyage["Voyage AI<br/><i>ai.mongodb.com/v1</i>"]
-    llm["LLM provider"]
-
-    reviewer -->|"HTTP"| nginx
-    nginx -->|"proxies to :8000"| api
-    api -->|"serves static assets from ./public"| spa
-    spa -->|"polls JSON endpoints, holds one<br/>EventSource on /api/stream"| nginx
-    api -->|"MongoDB wire protocol over TLS<br/>(VPC peering when deployed)"| atlas
-    api -->|"HTTPS: embed queries and documents"| voyage
-    api -->|"HTTPS: agent verdict, policy verdict"| llm
-```
+![Level 2 containers: nginx reverse proxy, the control-room API and the console SPA on a single host, with Atlas, Voyage AI and the LLM provider outside it](images/02-containers.png)
 
 There is no build step anywhere in this picture. `tsx` runs the TypeScript sources directly, and the
 SPA is three plain ES modules that the browser loads as written. The Dockerfile installs
@@ -95,69 +58,7 @@ that provisions on boot turns a restart into a schema migration.
 
 ## Level 3: components inside the API
 
-```mermaid
-graph TB
-    subgraph http["HTTP surface"]
-        routes["Routes<br/><i>src/server/routes.ts</i><br/>14 endpoints; owns the concurrency<br/>guards and the stats cache"]
-        session["Session tokens<br/><i>src/server/session.ts</i><br/>Stateless sid.exp.mac bearer tokens,<br/>30 min TTL"]
-        hub["Change-stream hub<br/><i>src/server/change-stream-sse.ts</i><br/>One watch over 8 collections,<br/>resume-token reconnect, fan-out to SSE"]
-        stats["Scorecard<br/><i>src/server/stats.ts</i><br/>Counts, per-stage percentiles,<br/>decision-quality rollup"]
-    end
-
-    subgraph pipeline["Investigation pipeline"]
-        engine["Run engine<br/><i>src/workflow/run-engine.ts</i><br/>Drives the 8 stages per case,<br/>emits one timeline event each"]
-        decision["Decision core<br/><i>src/decision/core.ts</i><br/>triage() before the model,<br/>reconcile() after it"]
-        investigate["Case commit<br/><i>src/workflow/investigate.ts</i><br/>Commit or suspend; resumes a<br/>held case on a human verdict"]
-        casestore["Case store<br/><i>src/workflow/case-store.ts</i><br/>One ACID transaction per decision"]
-        evidence["Evidence hash<br/><i>src/workflow/evidence.ts</i><br/>SHA-256 over a canonical snapshot"]
-    end
-
-    subgraph agent["Agent"]
-        mastra["Investigation agent<br/><i>src/mastra/investigation-agent.ts</i><br/>Mastra Agent, 5 bound tools,<br/>Zod-validated verdict"]
-        tools["Retrieval tools<br/><i>src/mastra/tools/</i><br/>hybrid_search, search_precedent,<br/>search_text, trace_funds, recall_verdicts"]
-        recorder["Tool recorder<br/><i>src/mastra/tool-recorder.ts</i><br/>Maps each tool call to the Atlas<br/>operator that served it"]
-    end
-
-    subgraph retrieval["Retrieval"]
-        svc["Retrieval service<br/><i>src/retrieval/service.ts</i>"]
-        pipes["Aggregation builders<br/><i>src/retrieval/pipelines.ts</i><br/>$vectorSearch, $search,<br/>$rankFusion, $graphLookup"]
-        embed["Embedder<br/><i>src/mastra/embed.ts</i><br/>Voyage client, batches of 96"]
-    end
-
-    subgraph gov["Governance"]
-        reviewer2["Policy reviewer<br/><i>src/governance/reviewer.ts</i><br/>Retrieves policy, scores, holds"]
-        judge["Policy judge<br/><i>src/governance/judge.ts</i><br/>The LLM call, 3 attempts,<br/>then fails closed"]
-        audit["Audit store and chain<br/><i>src/governance/audit-store.ts</i>,<br/><i>audit-chain.ts</i><br/>HMAC hash chain plus key fingerprint"]
-    end
-
-    mongo[("MongoDB Atlas")]
-
-    routes -->|"issues and verifies bearer tokens"| session
-    routes -->|"subscribes a viewer to the feed"| hub
-    routes -->|"reads the cached scorecard"| stats
-    routes -->|"starts a run over pending cases"| engine
-    routes -->|"resolves a held case on a human verdict"| investigate
-    routes -->|"verifies the chain for /api/audit/verify"| audit
-    engine -->|"calls triage() then reconcile()"| decision
-    engine -->|"asks for an investigation verdict"| mastra
-    engine -->|"fetches precedents and prior verdicts"| svc
-    engine -->|"submits the disposition for policy review"| reviewer2
-    engine -->|"hands the verdict over to commit or suspend"| investigate
-    investigate -->|"commits the decision transactionally"| casestore
-    investigate -->|"hashes the snapshot to bind the gate"| evidence
-    casestore -->|"appends the audit link in the same transaction"| audit
-    mastra -->|"binds the 5 tools to the agent"| tools
-    mastra -->|"records each tool call and its operator"| recorder
-    tools -->|"delegate retrieval"| svc
-    svc -->|"builds the aggregation to run"| pipes
-    svc -->|"embeds the query text"| embed
-    reviewer2 -->|"asks which policies are violated"| judge
-    pipes -->|"runs the aggregation"| mongo
-    casestore -->|"writes inside one transaction"| mongo
-    hub -->|"watches 8 collections"| mongo
-    stats -->|"aggregates counts and percentiles"| mongo
-    reviewer2 -->|"retrieves policies by vector"| mongo
-```
+![Level 3 components inside the API: the HTTP surface, investigation pipeline, agent, retrieval and governance groups, all pointing into MongoDB Atlas](images/03-api-components.png)
 
 The dependency arrows only ever point one way: HTTP surface into pipeline, pipeline into agent and
 retrieval and governance, all of them into Atlas. Nothing in `src/retrieval` or `src/governance`
@@ -176,48 +77,7 @@ work that actually happened.
 stages per case. Each stage writes one document to `agent_events`, which is what the live feed and
 the replay both read.
 
-```mermaid
-sequenceDiagram
-    participant Q as Run engine
-    participant R as Rules
-    participant A as Atlas
-    participant M as Agent (LLM)
-    participant G as Governance
-    participant H as Human
-
-    Q->>R: triage(facts)
-    alt Sanctions or watchlist hit
-        R-->>Q: hard reject
-        Note over Q,M: The model is never called.<br/>No tokens spent, no chance of an override.
-        Q->>A: commit decision + audit link (one transaction)
-    else No hard rule fires
-        Q->>A: retrieve: $rankFusion over transactions, k=4
-        A-->>Q: 4 decided precedents
-        Q->>Q: recall: top 2 prior dispositions
-        Q->>M: reason: narrative + 5 tools
-        M->>A: the agent's own tool calls ($rankFusion, $graphLookup, $vectorSearch)
-        A-->>M: results
-        M-->>Q: verdict {recommendation, confidence, risk_factors, rationale}
-        Q->>A: graph: $graphLookup from the sender account
-        A-->>Q: ring signal {circular_flow, layering, network_size}
-        Q->>G: govern: review the proposed disposition
-        G->>A: $vectorSearch over current policies
-        A-->>G: up to 5 policies
-        G->>M: judge: which of these are violated?
-        M-->>G: cited violations
-        G->>G: drop citations not in the retrieved set,<br/>score with the STORED severity, apply threshold
-        G-->>Q: {compliance_score, violations, held}
-        Q->>R: reconcile(facts, verdict)
-        Note over R: No rule match plus high confidence is the only route<br/>to an automatic approve. Everything else escalates.
-        alt Must escalate, or held below threshold
-            Q->>A: suspend: store snapshot + evidence_hash
-            H->>A: approve or reject
-            Note over H,A: The stored hash is re-derived from current state.<br/>Drift means the resolution is refused as stale.
-        else Clear to decide
-            Q->>A: commit decision + audit link (one transaction)
-        end
-    end
-```
+![The eight-stage investigation pipeline: triage branches to a hard reject that never calls the model, or to the full retrieve, recall, reason, graph, govern, reconcile and commit-or-suspend path](images/04-investigation-pipeline.png)
 
 Four properties of that sequence are worth stating plainly, because they are the reason the shape
 looks the way it does.
@@ -334,34 +194,7 @@ Each of these is recorded as an ADR with the measurement or failure that forced 
 The same server binary serves two modes, and the isolation between them is by collection, not by
 flag checks scattered through the code.
 
-```mermaid
-graph LR
-    subgraph working["Working collections (live mode writes here)"]
-        w1["transactions"]
-        w2["cases, case_decisions"]
-        w3["reviews"]
-        w4["audit_trail"]
-        w5["agent_events, case_analysis"]
-    end
-
-    subgraph replay["replay_* collections (immutable; demo mode reads here)"]
-        r1["replay_events"]
-        r2["replay_analysis"]
-        r3["replay_reviews"]
-        r4["replay_audit"]
-        r5["replay_meta"]
-    end
-
-    bake["pnpm bake<br/>runs the real agent once"]
-    export["pnpm export:replay<br/>to data/replay/*.json"]
-    restore["pnpm restore:replay<br/>onto any cluster"]
-
-    bake -->|"writes a real run into the working collections"| working
-    working -->|"snapshots into the replay copies"| replay
-    replay -->|"serializes to JSON, normalizing the audit key"| export
-    export -->|"is committed to the repository"| restore
-    restore -->|"loads and re-signs under the target's AUDIT_SECRET"| replay
-```
+![Live and demo mode: pnpm bake writes the working collections, which snapshot into the immutable replay collections, export to JSON in the repository and restore re-signed onto any cluster](images/05-live-vs-demo-mode.png)
 
 In demo mode a launch is a client-driven replay of recorded events with no LLM call, review
 resolutions are recorded per session in `session_resolutions` so many concurrent viewers each clear
