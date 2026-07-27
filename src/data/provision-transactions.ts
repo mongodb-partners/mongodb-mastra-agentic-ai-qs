@@ -16,7 +16,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
  *  is already true and this would otherwise return immediately over a still-building index —
  *  reporting a definition change as applied while queries still hit the old encoding. Tolerant of
  *  a missing `status` field so a deployment can't hang on a shape this driver doesn't return. */
-async function waitForQueryable(
+export async function waitForQueryable(
   col: any, name: string, attempts = 30, delayMs = 2000, requireReady = false,
 ): Promise<boolean> {
   for (let i = 0; i < attempts; i++) {
