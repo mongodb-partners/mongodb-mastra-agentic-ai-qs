@@ -208,7 +208,7 @@ sequenceDiagram
         G->>G: drop citations not in the retrieved set,<br/>score with the STORED severity, apply threshold
         G-->>Q: {compliance_score, violations, held}
         Q->>R: reconcile(facts, verdict)
-        Note over R: May only tighten. approve -> escalate is allowed,<br/>escalate -> approve is not expressible.
+        Note over R: No rule match plus high confidence is the only route<br/>to an automatic approve. Everything else escalates.
         alt Must escalate, or held below threshold
             Q->>A: suspend: store snapshot + evidence_hash
             H->>A: approve or reject
@@ -226,9 +226,17 @@ looks the way it does.
 reject. Consulting the agent first would spend tokens on a foregone conclusion and, worse, would
 create a code path where a model response sits between a hard rule and its outcome.
 
-**`reconcile()` can only tighten.** It escalates on a structuring band ($4,900 to $4,999), on a
-high-value approve (at or above $50,000), on a detected ring, on confidence at or below 85, or when the
-agent asks to escalate. There is no branch that relaxes a stricter recommendation into a looser one.
+**`reconcile()` bounds what can auto-approve.** It escalates on a structuring band ($4,900 to $4,999),
+on a high-value approve (at or above $50,000), on a detected ring, on confidence at or below 85, or when
+the agent asks to escalate. The guarantee is one-sided and worth stating precisely: no agent output
+reaches an automatic approve except a clear-cut approve above the confidence ceiling that matches no
+rule.
+
+It is not general monotonicity, and the code comment used to claim otherwise. The `low_confidence`
+check fires on confidence alone, regardless of `recommendation`, so a low-confidence *reject* also
+returns `escalate`, and escalate is a queue a human can approve from. Routing is toward human review
+from both directions, not strictly toward severity. What can auto-approve stays enumerable from one
+function; what can *eventually* be approved includes anything a human sees.
 
 **Governance is grounded and fails closed.** The judge may only cite policies that were retrieved;
 anything else is dropped and recorded in `dropped_citations`. Severity comes from the stored policy
@@ -269,19 +277,24 @@ The first row is the one to quote. Benchmarking `$vectorSearch` alone understate
 that actually ships by about 8x at 12k and 15.6x at 1M, because fusion runs both branches and pays
 for the slower one plus the merge.
 
-Share of wall-clock time per case:
-
-| Stage | Share |
-|---|---|
-| Agent reasoning | 45.0% |
-| Agent tool calls | 30.4% |
-| Governance | 16.1% |
-| Retrieve | 7.6% |
-| Graph | 0.5% |
-
-The model accounts for 91.5% of a case. Atlas accounts for 8.1%. Optimizing the aggregation
-pipelines further would be optimizing the wrong 8%, which is why the retrieval work in this repo is
+A case takes roughly 10 seconds, and the model is most of it. That direction is solid: the retrieval
+legs above are milliseconds against a model doing seconds. So optimizing the aggregation pipelines
+further would be optimizing the wrong few percent, which is why the retrieval work in this repo is
 aimed at correctness and at not falling off a cliff at scale, rather than at shaving milliseconds.
+
+**The `stage_share` figure on `/api/stats` is not a valid per-stage split, and earlier revisions of
+this document quoted it as one.** `stageDurationsMs` names each interval for the event that opens it,
+but `emit()` stamps `ts` at write time, after that stage's work has already completed, so every
+interval actually covers the *next* stage. Recomputed over `data/replay/replay_events.json` the
+attribution comes out `triage` 21.9% and `retrieve` 0.0%, which cannot be right in either direction:
+`triage()` is a boolean comparison on an amount, and `retrieve` runs a `$rankFusion` measured at 34.2
+ms p50. Every label is shifted by one event.
+
+The buckets would not separate cleanly even once realigned, because a single `tool` interval contains
+an Atlas aggregation, a Voyage embedding call, and model time. A real breakdown needs explicit spans
+around each provider call. Until then, treat `stage_share` only as the disclosure that a case-level
+latency is mostly LLM time, and never as a measurement of any one stage. Tracked under
+[known limits](#known-limits).
 
 Two scale cliffs were real and are worth naming, since both are configuration rather than code:
 
@@ -389,3 +402,24 @@ has no distributed lock and the deployment is a single box.
 Stage percentiles above p50 are suppressed below 100 samples. A six-case demo run reports a median
 and nulls for p95 and p99, because at n=6 the p90, p95, p99 and max are the same number and
 reporting it as a tail would be theatre.
+
+Per-stage attribution is wrong by one event and is served anyway. `stage_share` and `stages[*]` both
+come from `stageDurationsMs`, which measures the gap between consecutive events and attributes it to
+the earlier event's step name, while `emit()` stamps `ts` after the stage's work finishes. The
+numbers are self-evidently misattributed (see [where the time goes](#where-the-time-actually-goes)),
+and the fix is instrumentation rather than arithmetic: explicit spans around each Atlas, Voyage, and
+model call, which would also split the `tool` bucket that currently merges all three. The endpoint
+keeps serving the field because the console uses it to show that a case is mostly model time, which
+survives the error. Do not cite it per stage.
+
+The evidence hash covers four fields, not the evidence. `EvidenceSnapshot` is `transaction_id`,
+`proposed_disposition`, `amount`, `risk_factors`, and `compliance_score`, so an edited amount is
+caught but a changed precedent set, graph result, rationale, or policy set is not. And if the current
+analysis cannot be loaded at resume, the resolve path falls back to the stored snapshot, which
+matches its own hash by construction, and commits rather than refusing. See
+[ADR 0006](adr/0006-evidence-bound-human-review.md).
+
+The `sanctions_hit` flag that drives the hard pre-model reject is derived from seed data, not from a
+screening call. `run-engine.ts` sets it as `t.lane === 'sanctions'`, so the "watchlist match" is the
+lane the fixture was seeded into. A real deployment has to supply an actual watchlist check in its
+place; nothing else about the bracket shape changes when it does.

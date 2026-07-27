@@ -21,8 +21,9 @@ export interface StatsSnapshot {
   /**
    * Per-stage latency percentiles, each carrying its own `n`. These are the numbers worth
    * publishing: `retrieve` and `graph` are the Atlas-owned stages. There is deliberately NO
-   * case-level p99 — a case is dominated by LLM time (reason + tool ≈ 75% measured), so its
-   * tail would be Bedrock variance wearing a MongoDB label.
+   * case-level p99 — a case is dominated by LLM time (seconds of provider time against a
+   * `$rankFusion` p50 of 34.2 ms), so its tail would be provider variance wearing a MongoDB label.
+   * Do not restate that dominance as a percentage from `stage_share`; see `buildStageShare`.
    */
   stages: Record<string, StagePercentiles> | null;
   /** Share of summed stage time per stage — the disclosure that keeps the above honest. */
@@ -184,9 +185,15 @@ export function stageDurationsMs(events: SpanEvent[]): Record<string, number[]> 
 /**
  * Each stage's share of summed stage time.
  *
- * This is the disclosure that keeps a published retrieval percentile honest: on Track B the
- * measured split is reason 45.0%, tool 30.4%, govern 16.1%, retrieve 7.6%, graph 0.5% — so a
- * case-level number is mostly LLM time, and quoting one as a database figure would be wrong.
+ * This exists as a disclosure: it keeps a published case-level latency from being read as a
+ * database figure, because most of a case is LLM time. Use it for that direction and nothing more.
+ *
+ * DO NOT quote these percentages as per-stage measurements. The label is off by one, for the reason
+ * `stageDurationsMs` documents: an interval is named for the event that OPENS it, but each event is
+ * written after its stage's work completes, so the interval actually covers the NEXT stage. The
+ * committed recording makes the error self-evident: `triage` draws 21.9% while `triage()` is a
+ * boolean comparison on an amount, and `retrieve` draws 0.0% against a `$rankFusion` p50 of 34.2 ms
+ * measured directly. A per-stage number needs explicit spans around each provider call.
  */
 export function buildStageShare(durations: Record<string, number[]>): Record<string, number> | null {
   const totals = Object.entries(durations).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0)] as const);

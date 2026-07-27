@@ -353,6 +353,11 @@ concurrent requests during a cache miss share one aggregation.
 no events have been recorded. `scorecard` is `null` when no case has both a lane and a decided
 disposition. `latency_p50_ms` is `null` when no case span could be measured.
 
+`stage_share` keys are step names, but the shares are attributed one event late: an interval is named
+for the event that opens it, while each event is written after its own stage's work completes. The
+values are a coarse indicator that a case is dominated by model time, not a per-stage measurement. See
+[known limits](architecture.md#known-limits).
+
 In demo mode, `counts.transactions` and `counts.precedents` come from `replay_meta`, so they describe
 the cluster the recording was produced on rather than the cluster replaying it.
 

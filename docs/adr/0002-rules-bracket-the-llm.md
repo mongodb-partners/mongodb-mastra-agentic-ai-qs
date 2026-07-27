@@ -33,10 +33,16 @@ these hold:
 | Confidence at or below 85 | `LOW_CONFIDENCE_CEILING` |
 | The agent itself asked to escalate | |
 
-The invariant is one-directional: `reconcile` may only tighten. There is no branch that relaxes a
-stricter recommendation into a looser one. An agent `escalate` is therefore always honoured, and it is
-honoured by an explicit rule (`agent_requested_escalation`) rather than by falling through, because
-the fall-through only speaks approve and reject and an escalate reaching it became an auto-approve.
+The guarantee is bounded auto-approval, not monotonicity: no agent output reaches an automatic
+`approve` except a clear-cut approve above the confidence ceiling that matches no rule. An agent
+`escalate` is always honoured, and it is honoured by an explicit rule (`agent_requested_escalation`)
+rather than by falling through, because the fall-through only speaks approve and reject and an
+escalate reaching it became an auto-approve.
+
+"May only tighten" is the tempting phrasing and it is wrong, which earlier revisions of this ADR did
+not catch. The `low_confidence` condition tests confidence alone, regardless of `recommendation`, so a
+low-confidence *reject* also returns `escalate`, and escalate is a queue a human can approve from.
+Reconciliation routes toward human review from both directions rather than strictly toward severity.
 
 `decided_by` records which layer actually decided: `compliance` for a hard pre-model rule, `agent`
 when a clear-cut recommendation was honoured, `reconciler` when a rule tightened it.

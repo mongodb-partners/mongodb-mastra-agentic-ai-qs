@@ -292,19 +292,18 @@ immediately fail. Only data proves it works.
 
 ## What this adds up to
 
-The stage-share measurement is the honest frame for all of the above. Share of wall-clock per case:
+One frame keeps all of the above honest: a case takes roughly 10 seconds and the model is most of it.
+Measured directly, `$rankFusion` returns in a p50 of 34.2 ms and `$graphLookup` in single-digit
+milliseconds, against provider calls that run for seconds. The retrieval work in this repo is
+therefore aimed at correctness and at not falling off a cliff at scale, not at shaving milliseconds
+off a stage that is already a rounding error.
 
-| Stage | Share |
-|---|---|
-| Agent reasoning | 45.0% |
-| Agent tool calls | 30.4% |
-| Governance | 16.1% |
-| Retrieve | 7.6% |
-| Graph | 0.5% |
-
-The model is 91.5% of a case. Atlas is 8.1%. The retrieval work in this repo is therefore aimed at
-correctness and at not falling off a cliff at scale, not at shaving milliseconds off a stage that is
-already a rounding error.
+**Do not read the `stage_share` field on `/api/stats` as a per-stage split, and note that earlier
+revisions of this document tabulated it as one.** Its labels are shifted by one event: a stage
+interval is named for the event that opens it, but each event is written after its own stage's work
+finishes. The committed recording shows the error plainly, with `triage` drawing 21.9% for what is a
+boolean comparison on an amount and `retrieve` drawing 0.0% against that measured 34.2 ms. Use the
+field for the coarse direction it supports. See [known limits](architecture.md#known-limits).
 
 The claim worth making is the one about consolidation: eight capabilities, one connection string, one
 thing to secure and back up and reason about. Not that the aggregations are fast, though at these

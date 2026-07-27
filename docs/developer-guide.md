@@ -150,8 +150,12 @@ the verdict is in hand.
 ### Adding a decision rule
 
 Add it to `reconcile` in [`src/decision/core.ts`](../src/decision/core.ts) with a named constant, not a
-literal at the call site. The one invariant: `reconcile` may only tighten. There must be no branch that
-turns a stricter recommendation into a looser one. See [ADR 0002](adr/0002-rules-bracket-the-llm.md).
+literal at the call site. The invariant to preserve is the bound on auto-approval: after your rule, the
+only route to an automatic `approve` must still be a clear-cut approve above the confidence ceiling that
+matches no rule. A new rule that adds an escalate condition keeps that; one that returns `approve` on
+any other path breaks it. Note that this is narrower than "reconcile may only tighten", which the code
+comment used to claim and which the `low_confidence` branch already disproves. See
+[ADR 0002](adr/0002-rules-bracket-the-llm.md).
 
 If the rule involves an amount, compare through the money helpers.
 

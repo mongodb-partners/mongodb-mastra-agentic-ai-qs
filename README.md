@@ -61,9 +61,12 @@ touch only the working collections.
 
 ## What it measures
 
-A case takes about 10 seconds, and the model is 91.5% of that. Share of wall clock per case:
-45.0% agent reasoning, 30.4% tool calls, 16.1% governance, 7.6% retrieval, 0.5% graph. Atlas is
-8.1% of the total.
+A case takes about 10 seconds, and most of that is the model. Retrieval is milliseconds against a
+model doing seconds, which is why the database work here targets correctness and scale rather than
+shaving milliseconds. The `stage_share` field on `/api/stats` supports that direction and nothing
+finer: its per-stage labels are off by one, for the reason given under
+[known limits](docs/architecture.md#known-limits). Earlier revisions of this file quoted them as a
+measured split.
 
 Hybrid retrieval, over 300 investigations at k=4. Both corpora are larger than the 1,200 documents
 `pnpm provision` seeds by default:

@@ -30,7 +30,8 @@ export interface DecisionResult {
 }
 
 /**
- * Structuring band: a deposit deliberately just under the $5,000 CTR reporting threshold.
+ * Structuring band: a synthetic band for a deposit sized to sit just under a round reporting
+ * threshold. The bounds are demo fixtures, not any jurisdiction's actual filing threshold.
  *
  * Takes MoneyLike and compares through the money helpers so the same rule accepts a Decimal128
  * from the DB, a number from a fixture, and a string from an API payload. (A bare `amount >= 4900`
@@ -75,9 +76,14 @@ export function triage(facts: TxnFacts): DecisionResult | null {
  * a suspicious fund-tracing ring, confidence at/below the low-confidence ceiling, or the agent
  * itself asking for a human.
  *
- * The invariant is one-directional: this function may only ever TIGHTEN the agent's verdict, never
- * loosen it. An agent "escalate" is therefore always honored — it is not a case the policy rules
- * are expected to re-derive on their own.
+ * The guarantee is narrower than "this can only tighten", so state it precisely: no agent output
+ * reaches an automatic `approve` except a clear-cut approve above the confidence ceiling that
+ * matches no rule. That holds unconditionally, and it is the property worth relying on.
+ *
+ * What does NOT hold is general monotonicity. The `low_confidence` check below fires on confidence
+ * alone, regardless of `recommendation`, so a low-confidence `reject` also returns `escalate` — and
+ * escalate is a queue a human can approve from. Routing is toward human review from both
+ * directions, not strictly toward severity. An agent "escalate" is always honored.
  */
 export function reconcile(facts: TxnFacts, verdict: AgentVerdict): DecisionResult {
   const reasons: string[] = [];

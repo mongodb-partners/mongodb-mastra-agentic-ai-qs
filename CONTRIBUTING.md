@@ -58,7 +58,7 @@ These hold across the codebase, and a change that breaks one needs to say so exp
 
 | Invariant | Where |
 |---|---|
-| `reconcile()` may only tighten a verdict, never relax it | [`src/decision/core.ts`](src/decision/core.ts) |
+| The only route to an automatic `approve` is a clear-cut, high-confidence approve matching no rule | [`src/decision/core.ts`](src/decision/core.ts) |
 | Only `src/money.ts` knows `amount` is a `Decimal128` | [`src/money.ts`](src/money.ts) |
 | Aggregation shapes are pure functions in one module | [`src/retrieval/pipelines.ts`](src/retrieval/pipelines.ts) |
 | Recorded content is read through `recordingSource(demoMode)` | [`src/data/replay-store.ts`](src/data/replay-store.ts) |

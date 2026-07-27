@@ -93,8 +93,9 @@ curl -XPOST localhost:8000/api/investigate/run -H "Authorization: Bearer $TOKEN"
 ```
 
 Every pending case is investigated. One case is roughly 10 seconds, and most of that is the model:
-measured stage shares are 45.0% agent reasoning, 30.4% tool calls, 16.1% governance, 7.6% retrieval,
-0.5% graph. Atlas is 8.1% of the total.
+`$rankFusion` retrieval measures a p50 of 34.2 ms against provider calls that run for seconds. The
+`stage_share` field on `/api/stats` reports that direction but is not a valid per-stage split, for the
+reason given under [known limits](architecture.md#known-limits).
 
 Watch the console while it runs. The feed is not polling. It is a projection of a MongoDB change stream
 over eight collections, pushed to the browser as server-sent events.

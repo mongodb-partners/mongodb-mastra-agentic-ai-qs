@@ -50,6 +50,8 @@ the retry, the fail-closed path would fire on healthy traffic and the hold queue
 `dropped_citations` is worth reading in aggregate. A judge that repeatedly cites policies outside the
 retrieved set is a signal about retrieval coverage, not only about the model.
 
-Governance is 16.1% of a case's wall clock, second only to the agent itself. Grounding does not cost
-that; the extra model call does. Skipping the judge would be the largest single latency saving
-available and it is not on the table.
+Governance costs a case a second model call, and that call, not the grounding, is where the time goes.
+The retrieval it grounds against is milliseconds. An earlier revision of this ADR put a percentage on
+it, taken from the `stage_share` field, which is not a valid per-stage split; see
+[known limits](../architecture.md#known-limits). The ranking claim survives without a number: after
+the agent itself, the judge is the largest single latency item, and skipping it is not on the table.
