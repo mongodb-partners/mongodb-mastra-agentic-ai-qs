@@ -107,8 +107,13 @@ describe('ToolCallRecorder', () => {
     expect(TOOL_OPERATORS.recall_verdicts.capabilities).toEqual(['memory']);
   });
 
-  it('times INTERLEAVED calls to the same tool separately, so neither reports a false 0ms', async () => {
-    const rec = new ToolCallRecorder();
+  it('times INTERLEAVED calls to the same tool separately, so neither reports a false 0ms', () => {
+    // A STEPPED CLOCK, not sleeps. This test used to advance time with three `setTimeout(12)`s and
+    // assert `ms >= 18 && ms < 36` around a nominal 24 — a tolerance band that a loaded machine can
+    // overrun while the recorder is perfectly correct. The instants below are stated, so the two
+    // expected spans are arithmetic and the assertion is `toBe`, not a range.
+    let clock = 1_000;
+    const rec = new ToolCallRecorder(() => clock);
     rec.startAttempt();
     const h = rec.hooks();
     // Mastra fans tool calls out concurrently, and two hybrid_search calls in one turn is normal for
@@ -116,30 +121,25 @@ describe('ToolCallRecorder', () => {
     // first after() delete the entry, so call B reported 0ms — a lie shown next to $rankFusion.
     const inA = { query: 'a', k: 4 };
     const inB = { query: 'b', k: 4 };
-    h.beforeToolCall({ toolName: 'hybrid_search', input: inA, context: {} });
-    await new Promise(r => setTimeout(r, 12));
-    h.beforeToolCall({ toolName: 'hybrid_search', input: inB, context: {} });
-    await new Promise(r => setTimeout(r, 12));
-    h.afterToolCall({ toolName: 'hybrid_search', input: inA, context: {}, output: { results: [1] } });
-    await new Promise(r => setTimeout(r, 12));
-    h.afterToolCall({ toolName: 'hybrid_search', input: inB, context: {}, output: { results: [2] } });
+    h.beforeToolCall({ toolName: 'hybrid_search', input: inA, context: {} });   // A starts at 1000
+    clock += 12;
+    h.beforeToolCall({ toolName: 'hybrid_search', input: inB, context: {} });   // B starts at 1012
+    clock += 12;
+    h.afterToolCall({ toolName: 'hybrid_search', input: inA, context: {}, output: { results: [1] } }); // A ends 1024
+    clock += 12;
+    h.afterToolCall({ toolName: 'hybrid_search', input: inB, context: {}, output: { results: [2] } }); // B ends 1036
     rec.commitAttempt();
 
     const [a, b] = rec.drain();
     expect(a.tool.args.query).toBe('a');
     expect(b.tool.args.query).toBe('b');
-    // Both must be non-zero: under the old name-keyed map, B's start was overwritten by A's and
-    // then deleted by A's after(), so B measured 0ms. That is the regression this guards.
-    expect(a.tool.ms).toBeGreaterThan(0);
-    expect(b.tool.ms).toBeGreaterThan(0);
-    // Each duration must reflect its OWN span (~24ms here: two sleeps each), not the other's and not
-    // the whole interleaved window (~36ms). Deliberately NOT asserting a.ms < b.ms — A covers sleeps
-    // 1-2 and B covers sleeps 2-3, so their nominal spans are equal and any ordering assertion is
-    // decided by timer jitter. That version failed as "expected 27 to be greater than 28".
-    for (const ms of [a.tool.ms, b.tool.ms]) {
-      expect(ms).toBeGreaterThanOrEqual(18);
-      expect(ms).toBeLessThan(36);
-    }
+    // Each duration is its OWN span — 1024-1000 and 1036-1012 — not the other's and not the whole
+    // interleaved window (36). Equal by construction: the calls overlap symmetrically, which is why
+    // no ordering between them is asserted. Under the old name-keyed map B measured exactly 0,
+    // because A's before() overwrote B's start and A's after() deleted the entry; that is the
+    // regression this guards, and `toBe(24)` catches it far more sharply than `> 0` did.
+    expect(a.tool.ms).toBe(24);
+    expect(b.tool.ms).toBe(24);
   });
 
   it('does not throw when a call input is not an object, and still records the call', async () => {

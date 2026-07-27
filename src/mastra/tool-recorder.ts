@@ -126,6 +126,20 @@ function summarize(toolName: string, output: unknown): string | undefined {
  * in-memory; run-engine.ts does the writing after the verdict is in hand.
  */
 export class ToolCallRecorder {
+  /**
+   * The clock, injectable purely so the timing behaviour is testable as an EXACT number.
+   *
+   * Both hooks read this instead of `Date.now()`. Asserting a duration measured off the real clock
+   * means asserting a tolerance band — the interleaved-timing test used `>= 18 && < 36` around a
+   * nominal 24 ms of `setTimeout` sleeps — and a band is only as sound as the machine's scheduler.
+   * Under parallel vitest workers on a loaded box, three 12 ms sleeps overrun 36 ms and the test
+   * fails on a correct recorder. A stepped clock removes the sleeps entirely: the test states the
+   * instants and the expected span follows by arithmetic.
+   *
+   * Defaults to `Date.now`, so production behaviour is unchanged and no caller passes anything.
+   */
+  constructor(private now: () => number = Date.now) {}
+
   private attempt: ToolCallEvent[] = [];
   private committed: ToolCallEvent[] = [];
   /**
@@ -170,8 +184,8 @@ export class ToolCallRecorder {
     return {
       beforeToolCall: (ctx: any) => {
         const key = keyOf(ctx?.input);
-        if (key) this.started.set(key, Date.now());
-        else this.startedByName.set(String(ctx?.toolName ?? 'unknown'), Date.now());
+        if (key) this.started.set(key, this.now());
+        else this.startedByName.set(String(ctx?.toolName ?? 'unknown'), this.now());
       },
       afterToolCall: (ctx: any) => {
         const name = String(ctx?.toolName ?? 'unknown');
@@ -186,7 +200,7 @@ export class ToolCallRecorder {
 
         const ok = ctx?.error === undefined || ctx?.error === null;
         const count = ok ? resultCount(ctx?.output) : null;
-        const done = Date.now();
+        const done = this.now();
         this.attempt.push({
           step: 'tool',
           headline: ok
