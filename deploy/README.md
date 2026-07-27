@@ -93,3 +93,13 @@ machine, auto-detected as a /32) additionally gets SSH and the Atlas provisionin
 in SSM Parameter Store as SecureString (KMS-encrypted), hydrated into `/opt/app/.env` at boot; the
 instance role can read only this app's SSM path and decrypt via the SSM KMS key. The connection
 string is never a Terraform output; it exists only in SSM.
+
+## Related documentation
+
+- [`docs/configuration.md`](../docs/configuration.md): every environment variable the app reads,
+  including the `AUDIT_SECRET` behaviour described above
+- [`docs/operations.md`](../docs/operations.md): the replay lifecycle (`bake`, `export:replay`,
+  `restore:replay`, `check:replay`) and troubleshooting
+- [`docs/adr/0009-replay-isolation.md`](../docs/adr/0009-replay-isolation.md): why the recording is
+  restorable to any box, and what its provenance fields are for
+- [`docs/architecture.md`](../docs/architecture.md): the container diagram this deployment implements
