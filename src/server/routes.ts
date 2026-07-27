@@ -275,7 +275,7 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
 
   // Audit-chain integrity (verify_chain).
   app.get('/api/audit/verify', async c => {
-    const v = await new AuditStore(db, cfg.auditSecret, 1, REC.audit).verify();
+    const v = await new AuditStore(db, cfg.auditSecret, REC.audit).verify();
     return c.json(v);
   });
 

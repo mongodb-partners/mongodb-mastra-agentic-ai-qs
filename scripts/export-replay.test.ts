@@ -3,7 +3,7 @@ import { BSON } from 'mongodb';
 import { normalizeAudit, stageExport } from './export-replay';
 import { DEV_AUDIT_SECRET } from '../src/config';
 import { REPLAY_COLLECTIONS } from '../src/data/replay-store';
-import { buildAuditRecord, verifyChain, GENESIS_HASH, type AuditEvent, type AuditRecord } from '../src/governance/audit-chain';
+import { buildAuditRecord, hmacKeyId, verifyChain, GENESIS_HASH, type AuditEvent, type AuditRecord } from '../src/governance/audit-chain';
 
 /**
  * These cover the two properties of `pnpm export:replay` that the committed recording depends on and
@@ -61,10 +61,11 @@ describe('normalizeAudit — the export-time key normalization', () => {
 
     const out = normalizeAudit(input, DEV_AUDIT_SECRET);
 
-    // Same objects, not merely equal: the early return is what keeps hmac_key_version from
-    // creeping up by one on every local export.
+    // Same objects, not merely equal: the early return is what keeps a local export from rewriting
+    // hashes it does not need to touch. (It used to also keep hmac_key_version from creeping up by
+    // one every time; the key id is now derived, so it could not drift either way.)
     expect(out).toBe(input);
-    expect(out.map((r: AuditRecord) => r.hmac_key_version)).toEqual([1, 1, 1]);
+    expect(out.map((r: AuditRecord) => r.hmac_key_id)).toEqual(Array(3).fill(hmacKeyId(DEV_AUDIT_SECRET)));
   });
 
   it('passes an empty chain through instead of throwing', () => {
@@ -97,7 +98,9 @@ describe('stageExport — every file or none', () => {
     // Number.isFinite(t.ms) guard silently dropped {$numberInt:"22"}.
     const parsed = BSON.EJSON.parse(staged.find(f => f.path.endsWith('replay_audit.json'))!.json) as any[];
     expect(parsed).toHaveLength(3);
-    expect(parsed.map(r => r.hmac_key_version)).toEqual([2, 2, 2]);
+    // The committed artifact names the DEV key, whichever box baked it — that independence is the
+    // whole point of normalizing on export.
+    expect(parsed.map(r => r.hmac_key_id)).toEqual(Array(3).fill(hmacKeyId(DEV_AUDIT_SECRET)));
     expect(verifyChain(DEV_AUDIT_SECRET, parsed as AuditRecord[]).ok).toBe(true);
   });
 

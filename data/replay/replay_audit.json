@@ -28,9 +28,7 @@
     },
     "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
     "current_hash": "358608656b5ab71f16830798cf0fcab1d3a59399a739097776bafe244781b9be",
-    "hmac_key_version": {
-      "$numberInt": "2"
-    }
+    "hmac_key_id": "e093762f112a"
   },
   {
     "_id": {
@@ -61,9 +59,7 @@
     },
     "previous_hash": "358608656b5ab71f16830798cf0fcab1d3a59399a739097776bafe244781b9be",
     "current_hash": "6bd291850dffe11b96e2f498ae90199dbd73ed7468540cf781d41ff00b69a3ea",
-    "hmac_key_version": {
-      "$numberInt": "2"
-    }
+    "hmac_key_id": "e093762f112a"
   },
   {
     "_id": {
@@ -94,8 +90,6 @@
     },
     "previous_hash": "6bd291850dffe11b96e2f498ae90199dbd73ed7468540cf781d41ff00b69a3ea",
     "current_hash": "6a546ce43bba2b40123e6352685bb125775ce8c84b02a0b36e70a31b5b5346db",
-    "hmac_key_version": {
-      "$numberInt": "2"
-    }
+    "hmac_key_id": "e093762f112a"
   }
 ]

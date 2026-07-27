@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  canonicalize, computeHash, buildAuditRecord, verifyChain, GENESIS_HASH, type AuditEvent,
+  canonicalize, computeHash, buildAuditRecord, hmacKeyId, verifyChain, GENESIS_HASH,
+  type AuditEvent, type AuditRecord,
 } from './audit-chain';
 
 const SECRET = 'test-secret';
@@ -54,5 +55,51 @@ describe('hash chain', () => {
     const v = verifyChain(SECRET, [r1, r3]);
     expect(v.ok).toBe(false);
     expect(v.brokenLinks.some(b => b.reason === 'chain_link_broken')).toBe(true);
+  });
+});
+
+describe('hmac_key_id — which key signed this, not how many times it was re-signed', () => {
+  it('is stable for one key and distinct across keys', () => {
+    expect(hmacKeyId(SECRET)).toBe(hmacKeyId(SECRET));
+    expect(hmacKeyId(SECRET)).not.toBe(hmacKeyId(`${SECRET}-other`));
+    // 12 hex chars: long enough that two operator-chosen keys will not collide in practice, short
+    // enough to read off a record at a glance.
+    expect(hmacKeyId(SECRET)).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it('never reveals the secret it fingerprints', () => {
+    // A one-way function of the key, so it is safe to store beside the events — the same property
+    // that lets current_hash sit in the record.
+    expect(hmacKeyId(SECRET)).not.toContain(SECRET);
+    expect(hmacKeyId('')).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it('is derived from the signing secret, so a record can never mislabel its own key', () => {
+    const r = buildAuditRecord(SECRET, GENESIS_HASH, ev());
+    expect(r.hmac_key_id).toBe(hmacKeyId(SECRET));
+  });
+
+  it('reports key_mismatch — not hmac_mismatch — when the chain was signed by another key', () => {
+    // This is the operational payoff. Both are failures, but they call for opposite responses:
+    // key_mismatch means re-sign or point at the right secret; hmac_mismatch means the content
+    // changed under a key that still matches, i.e. investigate. The "AUDIT CHAIN BROKEN" banner
+    // after a seed without AUDIT_SECRET is the former, and used to be indistinguishable.
+    const r1 = buildAuditRecord(SECRET, GENESIS_HASH, ev({ entity_id: 'a' }));
+    const r2 = buildAuditRecord(SECRET, r1.current_hash, ev({ entity_id: 'b' }));
+
+    const v = verifyChain('a-different-secret', [r1, r2]);
+
+    expect(v.ok).toBe(false);
+    expect(v.brokenLinks.map(b => b.reason)).toEqual(['key_mismatch', 'key_mismatch']);
+  });
+
+  it('falls back to hmac_mismatch for a record that names no key at all', () => {
+    // Pre-migration records carry no id. Absence is not evidence of a key problem, and reporting one
+    // would send an operator to rotate a key over real tampering.
+    const r = buildAuditRecord(SECRET, GENESIS_HASH, ev());
+    const legacy = { ...r, hmac_key_id: undefined } as unknown as AuditRecord;
+
+    expect(verifyChain('a-different-secret', [legacy]).brokenLinks)
+      .toEqual([{ index: 0, reason: 'hmac_mismatch' }]);
   });
 });

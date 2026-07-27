@@ -13,7 +13,9 @@ export const AUDIT_COLLECTION = 'audit_trail';
 export class AuditStore {
   // `collectionName` defaults to the working audit trail; demo-mode verification points it at the
   // immutable replay copy so a cleared live run can't make the audit chip read as broken/empty.
-  constructor(private db: Db, private secret: string, private keyVersion = 1, private collectionName: string = AUDIT_COLLECTION) {}
+  // No key-version parameter: the record's key id is derived from `secret` inside buildAuditRecord,
+  // so there is no way to label a record with a key that did not sign it.
+  constructor(private db: Db, private secret: string, private collectionName: string = AUDIT_COLLECTION) {}
 
   private col() { return this.db.collection<AuditRecord>(this.collectionName); }
 
@@ -25,7 +27,7 @@ export class AuditStore {
   async append(event: AuditEvent, session?: any): Promise<AuditRecord> {
     const last = await this.col().find({}, session ? { session } : {}).sort({ _id: -1 }).limit(1).next();
     const previousHash = last?.current_hash ?? GENESIS_HASH;
-    const record = buildAuditRecord(this.secret, previousHash, event, this.keyVersion);
+    const record = buildAuditRecord(this.secret, previousHash, event);
     await this.col().insertOne(record as any, session ? { session } : {});
     return record;
   }

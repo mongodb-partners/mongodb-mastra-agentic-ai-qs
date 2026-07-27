@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resignAuditChain, resignRecords } from './resign-chain';
-import { buildAuditRecord, verifyChain, GENESIS_HASH, type AuditEvent, type AuditRecord } from './audit-chain';
+import { buildAuditRecord, hmacKeyId, verifyChain, GENESIS_HASH, type AuditEvent, type AuditRecord } from './audit-chain';
 
 const OLD = 'marshal-dev-audit-secret';
 const NEW = 'a-real-strong-deployment-secret';
@@ -27,7 +27,9 @@ function chain(secret: string): AuditRecord[] {
 
 /**
  * Minimal in-memory stand-in for the one collection resignAuditChain touches. Keeps insertion order
- * (which is chain order) and applies $set the way bulkWrite would.
+ * (which is chain order) and applies $set / $unset the way bulkWrite would. $unset is modelled
+ * because the re-sign drops the legacy `hmac_key_version` counter, and a fake that silently ignored
+ * it would let a test pass on a document Mongo would have left the stale field on.
  */
 function fakeDb(records: AuditRecord[]) {
   const docs = records.map(r => ({ ...r }));
@@ -36,7 +38,10 @@ function fakeDb(records: AuditRecord[]) {
     bulkWrite: async (ops: any[]) => {
       for (const op of ops) {
         const doc = docs.find(d => (d as any)._id === op.updateOne.filter._id);
-        if (doc) Object.assign(doc, op.updateOne.update.$set);
+        if (!doc) continue;
+        const { $set, $unset } = op.updateOne.update;
+        if ($set) Object.assign(doc, $set);
+        for (const k of Object.keys($unset ?? {})) delete (doc as any)[k];
       }
       return { modifiedCount: ops.length };
     },
@@ -54,7 +59,7 @@ describe('resignAuditChain', () => {
     expect(verifyChain(OLD, docs as AuditRecord[]).ok).toBe(false);
   });
 
-  it('preserves event content — only the hashes and key version move', async () => {
+  it('preserves event content — only the hashes and key id move', async () => {
     const before = chain(OLD);
     const { db, docs } = fakeDb(before);
     await resignAuditChain(db, 'replay_audit', OLD, NEW);
@@ -65,7 +70,38 @@ describe('resignAuditChain', () => {
       expect(d.actor).toEqual(before[i].actor);
       expect(d.payload_summary).toEqual(before[i].payload_summary);
       expect(d.timestamp).toEqual(before[i].timestamp);
-      expect(d.hmac_key_version).toBe(2);
+      // Names the NEW key, and is the id that key produces anywhere — not a count of re-signings.
+      expect(d.hmac_key_id).toBe(hmacKeyId(NEW));
+    }
+  });
+
+  it('stamps the key that signed it, so the SAME key always yields the SAME id', async () => {
+    // The defect this replaces: `(prior ?? 1) + 1` made the label a function of HOW MANY TIMES a
+    // chain had been re-signed. Two boxes holding one key disagreed; two boxes holding different
+    // keys agreed. Re-signing twice through a third key must land back on NEW's id, not 3.
+    const { db, docs } = fakeDb(chain(OLD));
+    await resignAuditChain(db, 'replay_audit', OLD, NEW);
+    const once = docs.map(d => (d as any).hmac_key_id);
+
+    const THIRD = 'a-third-rotation-secret';
+    await resignAuditChain(db, 'replay_audit', NEW, THIRD);
+    await resignAuditChain(db, 'replay_audit', THIRD, NEW);
+
+    expect(once).toEqual([hmacKeyId(NEW), hmacKeyId(NEW), hmacKeyId(NEW)]);
+    expect(docs.map(d => (d as any).hmac_key_id)).toEqual(once);
+  });
+
+  it('drops the legacy hmac_key_version counter instead of leaving it beside a correct id', async () => {
+    // Records written before this field existed carry the counter. Leaving it would keep the number
+    // an operator has been reading next to the id that supersedes it.
+    const legacy = chain(OLD).map(r => ({ ...r, hmac_key_version: 2 }));
+    const { db, docs } = fakeDb(legacy as AuditRecord[]);
+
+    await resignAuditChain(db, 'replay_audit', OLD, NEW);
+
+    for (const d of docs) {
+      expect('hmac_key_version' in d).toBe(false);
+      expect((d as any).hmac_key_id).toBe(hmacKeyId(NEW));
     }
   });
 
@@ -100,7 +136,11 @@ describe('resignAuditChain', () => {
     const res = await resignAuditChain(db, 'replay_audit', OLD, NEW);
 
     expect(res.status).toBe('tampered');
+    // hmac_mismatch, NOT key_mismatch: the record names the very key being verified with, so the
+    // content is what changed. That distinction is what tells an operator to investigate rather
+    // than rotate.
     expect(res.brokenLinks?.some(b => b.reason === 'hmac_mismatch')).toBe(true);
+    expect(res.brokenLinks?.some(b => b.reason === 'key_mismatch')).toBe(false);
     expect(docs).toEqual(snapshot); // nothing written
   });
 
@@ -134,11 +174,11 @@ describe('resignRecords — what export:replay uses to normalize the committed a
 
     expect(input).toEqual(before);   // pure
     for (let i = 0; i < out.length; i++) {
-      const { previous_hash: _p, current_hash: _c, hmac_key_version: _v, ...content } = out[i] as any;
-      const { previous_hash: _p2, current_hash: _c2, hmac_key_version: _v2, ...was } = before[i] as any;
+      const { previous_hash: _p, current_hash: _c, hmac_key_id: _v, ...content } = out[i] as any;
+      const { previous_hash: _p2, current_hash: _c2, hmac_key_id: _v2, ...was } = before[i] as any;
       expect(content).toEqual(was);
     }
-    expect(out.map(r => r.hmac_key_version)).toEqual([2, 2, 2]);
+    expect(out.map(r => r.hmac_key_id)).toEqual([hmacKeyId(OLD), hmacKeyId(OLD), hmacKeyId(OLD)]);
   });
 
   it('returns null rather than laundering a chain that does not verify under the old key', () => {

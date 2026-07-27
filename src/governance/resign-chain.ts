@@ -1,5 +1,5 @@
 import type { Db } from 'mongodb';
-import { GENESIS_HASH, computeHash, verifyChain, type AuditRecord } from './audit-chain';
+import { GENESIS_HASH, computeHash, hmacKeyId, verifyChain, type AuditRecord } from './audit-chain';
 
 /**
  * Re-sign an audit chain under a different HMAC secret — a key rotation, not a repair.
@@ -35,15 +35,14 @@ export function resignRecords(
   records: AuditRecord[], oldSecret: string, newSecret: string,
 ): AuditRecord[] | null {
   if (!verifyChain(oldSecret, records).ok) return null;
+  const newKeyId = hmacKeyId(newSecret);
   let prev = GENESIS_HASH;
   return records.map(r => {
     const current_hash = computeHash(newSecret, prev, eventOf(r));
-    const out = {
-      ...r,
-      previous_hash: prev,
-      current_hash,
-      hmac_key_version: (r.hmac_key_version ?? 1) + 1,
-    };
+    // The id names the NEW key, so it is the same value no matter how many rotations preceded this
+    // one. Rotating dev → box → dev (which `export:replay` does) therefore returns to the dev id
+    // rather than drifting upward, and the committed artifact is byte-identical whichever box baked it.
+    const out = { ...r, previous_hash: prev, current_hash, hmac_key_id: newKeyId };
     prev = current_hash;
     return out;
   });
@@ -65,7 +64,7 @@ export interface ResignResult {
  * 'tampered' in that case so the caller can fail loudly.
  *
  * Content (event_type, entity_id, actor, payload_summary, timestamp) is never modified; only
- * previous_hash / current_hash / hmac_key_version are. Idempotent: a chain already valid under
+ * previous_hash / current_hash / hmac_key_id are. Idempotent: a chain already valid under
  * `newSecret` is left alone and reported as 'already_valid'.
  */
 export async function resignAuditChain(
@@ -86,14 +85,20 @@ export async function resignAuditChain(
   }
 
   // Recompute forward from genesis so previous_hash links stay consistent with the new hashes.
+  const newKeyId = hmacKeyId(newSecret);
   let prev = GENESIS_HASH;
   const ops = recs.map(r => {
     const current_hash = computeHash(newSecret, prev, eventOf(r));
     const op = {
       updateOne: {
         filter: { _id: r._id },
-        // Bump the key version: the records are now signed with a different key than v1.
-        update: { $set: { previous_hash: prev, current_hash, hmac_key_version: (r.hmac_key_version ?? 1) + 1 } },
+        // Stamp the id of the key these hashes were just computed with, and drop any legacy counter:
+        // leaving `hmac_key_version` behind would keep a stale number next to a correct id, and the
+        // stale number is the one an operator has been reading.
+        update: {
+          $set: { previous_hash: prev, current_hash, hmac_key_id: newKeyId },
+          $unset: { hmac_key_version: '' },
+        },
       },
     };
     prev = current_hash;
