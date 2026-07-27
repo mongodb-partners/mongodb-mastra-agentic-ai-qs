@@ -4,7 +4,7 @@ import { basename, dirname, join } from 'node:path';
 import { MongoClient, BSON } from 'mongodb';
 import { DEV_AUDIT_SECRET, loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
-import { REPLAY_COLLECTIONS } from '../src/data/replay-store';
+import { REPLAY_COLLECTIONS, REPLAY_META_COLLECTION } from '../src/data/replay-store';
 import { resignRecords } from '../src/governance/resign-chain';
 
 /**
@@ -69,7 +69,10 @@ export async function stageExport(
   load: (collection: string) => Promise<any[]>, secret: string, outDir = OUT_DIR,
 ): Promise<StagedFile[]> {
   const staged: StagedFile[] = [];
-  for (const dst of Object.values(REPLAY_COLLECTIONS)) {
+  // REPLAY_META_COLLECTION is exported alongside the four recording collections because the
+  // recording's scale is part of the recording: demo mode reports `counts.transactions` from it, so
+  // an artifact without it replays a 1M run while reporting whatever the replaying cluster holds.
+  for (const dst of [...Object.values(REPLAY_COLLECTIONS), REPLAY_META_COLLECTION]) {
     let docs = await load(dst);
     if (dst === REPLAY_COLLECTIONS.audit_trail) docs = normalizeAudit(docs, secret);
     // EJSON (relaxed=false) preserves ObjectId/Date types exactly for a clean restore.

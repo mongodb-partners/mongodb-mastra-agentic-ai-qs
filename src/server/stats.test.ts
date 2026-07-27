@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildScorecard, caseSpansMs, medianCaseSpanMs,
+  buildScorecard, caseSpansMs, medianCaseSpanMs, gatherStats,
   percentile, buildStagePercentiles, stageDurationsMs, buildStageShare, MIN_TAIL_N,
 } from './stats';
 
@@ -227,5 +227,40 @@ describe('buildStageShare', () => {
   it('returns null when there is no measured time to apportion', () => {
     expect(buildStageShare({})).toBeNull();
     expect(buildStageShare({ retrieve: [0] })).toBeNull();
+  });
+});
+
+describe('gatherStats — recorded vs live corpus counts', () => {
+  /** Minimal Db: every count returns 7 so a substituted number is unmistakable. */
+  const db = {
+    collection: () => ({
+      estimatedDocumentCount: async () => 7,
+      countDocuments: async () => 7,
+      find: () => ({ toArray: async () => [], sort: () => ({ toArray: async () => [] }) }),
+    }),
+  } as any;
+  const src = { events: 'replay_events', analysis: 'replay_analysis', audit: 'replay_audit' };
+
+  it('counts off the cluster when the source carries no recorded corpus', async () => {
+    const s = await gatherStats(db, src);
+    expect(s.counts.transactions).toBe(7);
+    expect(s.counts.precedents).toBe(7);
+  });
+
+  it('publishes the recorded corpus and precedent counts when replaying', async () => {
+    const s = await gatherStats(db, { ...src, recordedCorpusSize: 1_000_015, recordedPrecedents: 1_000_009 });
+    expect(s.counts.transactions).toBe(1_000_015);
+    expect(s.counts.precedents).toBe(1_000_009);
+    // Only the corpus figures come from the recording — `pending` is still a live count, because a
+    // replay's queue is served from this cluster.
+    expect(s.counts.pending).toBe(7);
+  });
+
+  it('does not treat a recorded zero as absent', async () => {
+    // `??`, not `||`: a recording baked against an empty corpus reports 0, and 0 is the truth about
+    // that run. Falling back here would silently publish the replaying cluster's size instead.
+    const s = await gatherStats(db, { ...src, recordedCorpusSize: 0, recordedPrecedents: 0 });
+    expect(s.counts.transactions).toBe(0);
+    expect(s.counts.precedents).toBe(0);
   });
 });

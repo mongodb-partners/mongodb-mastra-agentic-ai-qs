@@ -1,6 +1,6 @@
 import type { Db } from 'mongodb';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
-import { REPLAY_COLLECTIONS } from './replay-store';
+import { REPLAY_COLLECTIONS, readReplayMeta } from './replay-store';
 
 /**
  * Health checks for the baked demo recording, run after `pnpm restore:replay`.
@@ -36,6 +36,12 @@ export interface ReplayHealthReport {
   /** Precedent/memory ids cited by the recording that do not exist in `transactions`. */
   danglingIds: string[];
   corpusSize: number;
+  /**
+   * Corpus size the recording was produced against, when it carries one. Non-null means the
+   * dangling-id check above is informational rather than a warning — see the comment at its call
+   * site — and is what demo mode publishes as `counts.transactions`.
+   */
+  recordedCorpusSize: number | null;
   /** Wall-clock span of the recording in ms, i.e. what the replay will take to play. */
   recordingSpanMs: number;
   /** How many recorded gaps the client's MAX clamp would bite. */
@@ -85,7 +91,18 @@ export async function checkReplayHealth(
       .toArray()).map(d => String(d.transaction_id)),
   );
   const danglingIds = cited.filter(id => !present.has(id));
-  if (danglingIds.length) {
+  // Only a warning when the recording was baked against THIS cluster. A recording carrying its own
+  // `corpus_size` (see ReplayMeta) is replayed on a box that deliberately does not hold the corpus:
+  // precedent content is stored inline in `replay_analysis` and renders from the snapshot, and no
+  // precedent is clickable, so nothing resolves against `transactions` during a replay.
+  //
+  // Warning anyway would be worse than noise. Synthetic ids are POSITIONAL (`txn-syn-00016`), so the
+  // same id names a different transaction in two corpora built by different revisions of the
+  // generator — measured: `structuring`/escalated in the 12k corpus, `clean_approve`/approved in the
+  // 1M one. An operator told to "seed the corpus the recording expects" would be seeding look-alikes
+  // that silence this check while making it mean nothing. Absent is honest; look-alike is not.
+  const recorded = await readReplayMeta(db);
+  if (danglingIds.length && !recorded) {
     warnings.push(
       `${danglingIds.length}/${cited.length} precedent id(s) cited by the recording are NOT in ` +
       `\`${TRANSACTIONS_COLLECTION}\` (corpus=${corpusSize}): ${danglingIds.slice(0, 6).join(', ')}` +
@@ -126,7 +143,9 @@ export async function checkReplayHealth(
   }
 
   return {
-    ok: warnings.length === 0, warnings, danglingIds, corpusSize, recordingSpanMs, clampedGaps,
+    ok: warnings.length === 0, warnings, danglingIds, corpusSize,
+    recordedCorpusSize: recorded?.corpus_size ?? null,
+    recordingSpanMs, clampedGaps,
     subFrameGaps: subFrame, totalGaps: Math.max(0, stamps.length - 1),
   };
 }

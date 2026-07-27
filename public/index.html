@@ -397,9 +397,6 @@ try { var q = new URLSearchParams(location.search).get('ui');
      Every rule below is scoped :root:not([data-ui="classic"]) so ?ui=classic and the >=1600px
      layout stay byte-identical to the ui-baseline-2026-07-25 tag; the overlay repo's
      scripts/ui-matrix.mjs asserts that against a checkout of the tag itself. */
-  @media (max-width:1599px) and (min-width:1180px) {
-    :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
-  }
   /* THE STATUS BAR DOES NOT FIT IN THIS BAND, and #credit is what falls off. Measured at 1180 with
      the real /api/stats payload: #live 111 + #stats 691 + #auditChip 165 + #credit 229 plus four
      14px gaps needs ~1252px of a 1156px bar, so #credit lands at 1078..1306 against a bar ending at
@@ -412,11 +409,19 @@ try { var q = new URLSearchParams(location.search).get('ui');
      than any real one, so every viewport measured a bar roomier than production's and the assertion
      that catches this passed for two months.
 
-     1330 rather than 1599, because the overflow is #stats-width-dependent and stops there: at 1360
-     the credit is already inside. Wrapping a bar that fits would push the credit onto a second row
-     for no reason and cost the layout 10px of #center. The upper bound is measured, not chosen — if
-     #stats grows again (the 1M corpus widens it), this number is the thing to re-measure. */
-  @media (max-width:1330px) and (min-width:1180px) {
+     THE BOUND IS NOW THE WHOLE BAND (1599), re-measured after #stats grew twice — exactly the
+     re-measurement the previous version of this comment asked for, and its 1330 was already stale by
+     two changes. #stats went 691px → 871px at 12k (the Atlas-stage chip) → 915px with the 1M corpus
+     the recording now reports, so the credit is outside the bar at every width the old rule left on
+     the nowrap path: measured OUT by 138px at 1360, 58px at 1440, 3px at 1495, and first INSIDE at
+     1500. Extending to 1599 costs the 1500-1599 sliver a second row it does not strictly need, and
+     buys a bound that does not go stale the next time a chip is added — the tier above cannot wrap at
+     all (its grid is frozen against ui-baseline-2026-07-25), so above 1600 the chip degrades by
+     measurement in fitAtlasChip() instead. Wrapping here and degrading there is the split. */
+  @media (max-width:1599px) and (min-width:1180px) {
+    /* Narrower rails than the stage tier — this rule predates the wrap fix below and is merged into
+       the same block only because both now cover exactly 1180-1599. */
+    :root:not([data-ui="classic"]) #hud { grid-template-columns:340px minmax(0,1fr) 360px; }
     :root:not([data-ui="classic"]) #hud { grid-template-rows:58px 74px 1fr auto; }
     :root:not([data-ui="classic"]) #bottom { flex-wrap:wrap; overflow:visible; padding:8px 18px; gap:4px 14px; }
   }

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { MongoClient, BSON } from 'mongodb';
 import { DEV_AUDIT_SECRET, loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
-import { REPLAY_COLLECTIONS } from '../src/data/replay-store';
+import { REPLAY_COLLECTIONS, REPLAY_META_COLLECTION, readReplayMeta } from '../src/data/replay-store';
 import { resignAuditChain } from '../src/governance/resign-chain';
 import { checkReplayHealth } from '../src/data/replay-health';
 
@@ -36,7 +36,11 @@ async function main() {
   const db = client.db(cfg.mongoDb);
 
   const summary: Record<string, number> = {};
-  for (const dst of Object.values(REPLAY_COLLECTIONS)) {
+  // Includes REPLAY_META_COLLECTION: the recorded corpus size is what demo mode publishes as
+  // `counts.transactions`, so a restore that skipped it would leave the replay reporting this
+  // cluster's size for a run recorded elsewhere. Absent in artifacts exported before it existed —
+  // the `existsSync` skip below already handles that, and the server falls back to the live count.
+  for (const dst of [...Object.values(REPLAY_COLLECTIONS), REPLAY_META_COLLECTION]) {
     const file = join(IN_DIR, `${dst}.json`);
     if (!existsSync(file)) { logger.warn('missing export file — skipping', { file }); continue; }
     const docs = BSON.EJSON.parse(readFileSync(file, 'utf8')) as any[];
@@ -73,6 +77,17 @@ async function main() {
   if (health.ok) {
     logger.info('replay health OK', {
       corpus: health.corpusSize, recording_span_s: +(health.recordingSpanMs / 1000).toFixed(1),
+    });
+  }
+  // Log the provenance whether or not the health check was clean: on a replay-only box the cited
+  // ids are EXPECTED to be absent locally, so the count above is not the number a reader wants —
+  // the recorded corpus is. Reported rather than warned about, per the call-site comment in
+  // src/data/replay-health.ts.
+  if (health.recordedCorpusSize !== null) {
+    logger.info('recording carries its own corpus size — demo mode reports the recorded run', {
+      recorded_corpus: health.recordedCorpusSize,
+      local_corpus: health.corpusSize,
+      cited_ids_absent_locally: health.danglingIds.length,
     });
   }
 

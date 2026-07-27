@@ -81,13 +81,15 @@ describe('normalizeAudit — the export-time key normalization', () => {
   });
 });
 
-describe('stageExport — all four files or none', () => {
-  it('stages every replay collection with the audit chain normalized', async () => {
+describe('stageExport — every file or none', () => {
+  it('stages every replay collection, plus the provenance doc, with the audit chain normalized', async () => {
     const staged = await stageExport(loader(chain(BOX)), BOX, '/out');
 
+    // replay_meta is part of the artifact, not an extra: demo mode publishes the recorded corpus size
+    // from it, so an export without it replays a 1M run while reporting the replaying cluster's size.
     expect(staged.map(f => f.path)).toEqual([
       '/out/replay_events.json', '/out/replay_analysis.json',
-      '/out/replay_reviews.json', '/out/replay_audit.json',
+      '/out/replay_reviews.json', '/out/replay_audit.json', '/out/replay_meta.json',
     ]);
     // Read back through EJSON.parse, not as plain JSON: `relaxed:false` wraps every int as
     // {$numberInt:"2"}, so a `=== 2` check on the raw JSON fails against correct output. That
@@ -106,9 +108,9 @@ describe('stageExport — all four files or none', () => {
 
     await expect(stageExport(load, BOX, '/out')).rejects.toThrow(/refusing to export/);
 
-    // The regression this pins: replay_audit is LAST, so all four collections were read — i.e. a
-    // write-as-you-go loop would already have written the first three by the time it threw. Because
-    // stageExport returns nothing here, main() reaches no writeFileSync at all.
+    // The regression this pins: the abort fires PART-WAY through the loop, after the earlier
+    // collections have been read — a write-as-you-go loop would already have written them by the time
+    // it threw. Because stageExport returns nothing here, main() reaches no writeFileSync at all.
     expect(load).toHaveBeenCalledTimes(4);
     expect(load).toHaveBeenLastCalledWith(REPLAY_COLLECTIONS.audit_trail);
   });
@@ -118,6 +120,7 @@ describe('stageExport — all four files or none', () => {
 
     expect(Object.fromEntries(staged.map(f => [f.path.split('/').pop(), f.count]))).toEqual({
       'replay_events.json': 1, 'replay_analysis.json': 0, 'replay_reviews.json': 1, 'replay_audit.json': 5,
+      'replay_meta.json': 1,
     });
   });
 

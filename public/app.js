@@ -603,6 +603,96 @@ async function loadCaps() {
 const fmtMs = ms => ms == null ? null : (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms');
 
 /**
+ * The Atlas-owned stage as a status-bar chip: `retrieve p50 34ms · n=8`, widening to
+ * `retrieve p50 34ms · p95 56ms · p99 71ms · n=180` once the server publishes a tail.
+ *
+ * `retrieve` first, `graph` as the fallback: those are the two stages that are MongoDB work rather
+ * than model time, and retrieve is the hybrid `$rankFusion` path the demo is actually about. Named
+ * explicitly instead of "the slowest stage" — a chip whose subject changes between polls reads as a
+ * different measurement each time, and the widest stage is usually `tool` (i.e. Bedrock).
+ */
+const ATLAS_STAGES = ['retrieve', 'graph'];
+
+/**
+ * The chip's forms, widest first — `fitAtlasChip()` picks the widest that fits.
+ *
+ * WHY A LADDER AND NOT ONE STRING. The full form measures 383px and the bar cannot always pay it:
+ * with the 1M corpus #stats reaches 1139px and the credit lands 166px outside a 1600px bar's right
+ * edge, clipped by #bottom's `overflow:hidden`. Measured at 1600/1700/1920 with the real payload:
+ * full 383px fits only at 1920, p50+p99 289px from 1700, p50-only 195px from 1600.
+ *
+ * p95 is what drops first, not p99. If only one tail figure survives it should be the one that says
+ * something the p50 does not — p95 sits close to the median (measured 34.2 → 56.2ms) while p99 is
+ * where the tail actually lives (71.2ms). `n` never drops: a percentile without its sample size is
+ * not a claim a reader can check.
+ *
+ * Below 1600 the bar WRAPS instead of degrading (see the media block in index.html), so the laptop
+ * band shows the full form on its own row. This ladder is for the >=1600 tier, whose grid is frozen
+ * byte-for-byte against the ui-baseline-2026-07-25 tag and cannot be given a second row.
+ */
+const ATLAS_FITS = [
+  p => [`p50 <b>${fmtMs(p.p50)}</b>`, p.p95 != null && `p95 <b>${fmtMs(p.p95)}</b>`,
+        p.p99 != null && `p99 <b>${fmtMs(p.p99)}</b>`, `n=<b>${p.n}</b>`],
+  p => [`p50 <b>${fmtMs(p.p50)}</b>`, p.p99 != null && `p99 <b>${fmtMs(p.p99)}</b>`, `n=<b>${p.n}</b>`],
+  p => [`p50 <b>${fmtMs(p.p50)}</b>`, `n=<b>${p.n}</b>`],
+];
+
+/** The stage the chip is about, and its percentiles — null when the server published no stages. */
+function atlasStage(s) {
+  const stages = s.stages || {};
+  const name = ATLAS_STAGES.find(k => stages[k]);
+  return name ? { name, p: stages[name] } : null;
+}
+
+function atlasChipHtml(name, p, form) {
+  // Dim label, bold value — the same pairing every other chip in this bar uses, so the percentiles
+  // read as part of the readout rather than as a differently-styled annotation on it.
+  // esc() even though `name` comes from ATLAS_STAGES rather than the payload: the numbers beside it
+  // are server-supplied, and the whole string is assigned via innerHTML.
+  return `${esc(name)} ${form(p).filter(Boolean).join(' · ')}`;
+}
+
+/**
+ * Does everything in the status bar still sit inside it?
+ *
+ * Measures the LAST visible child rather than the chip itself: #stats does not shrink and #bottom
+ * clips with `overflow:hidden`, so a too-wide chip is not clipped — it pushes #credit (and on the
+ * live bundle #auditChip) off the right edge, which is where the defect becomes visible. On the
+ * wrapping tiers the last child lands on a second row and this passes, which is the correct answer
+ * there: nothing is hidden, so nothing needs to degrade.
+ */
+function barFits() {
+  const bar = $('#bottom');
+  if (!bar) return true;
+  const kids = [...bar.children].filter(e => e.getBoundingClientRect().width > 0);
+  const last = kids[kids.length - 1];
+  // 1px of slack: rects are fractional and an exact fit measures as one pixel over (the same
+  // tolerance fitCounters() needs, for the same reason).
+  return !last || last.getBoundingClientRect().right <= bar.getBoundingClientRect().right + 1;
+}
+
+/**
+ * Pick the widest chip form the bar can pay for. Called after every #stats render and on resize,
+ * because the budget is "whatever the rest of the bar leaves over" and both sides move: the corpus
+ * grows mid-demo, and the tail appears once enough cases have run.
+ */
+function fitAtlasChip() {
+  const el = $('#atlasStage');
+  if (!el) return;
+  const name = el.dataset.stage;
+  const p = JSON.parse(el.dataset.p || 'null');
+  if (!name || !p) return;
+  for (const form of ATLAS_FITS) {
+    el.hidden = false;
+    el.innerHTML = atlasChipHtml(name, p, form);
+    if (barFits()) return;
+  }
+  // Even the narrowest form does not fit. Hiding it is the honest end of the ladder — the alternative
+  // is a bar that clips its own integrity chip to show a latency figure.
+  el.hidden = true;
+}
+
+/**
  * Per-stage latency breakdown for the p50 chip's tooltip: `retrieve p50 41ms (7.6%, n=180)`.
  *
  * Every figure carries its sample size, and p95/p99 only appear when the server published them —
@@ -643,11 +733,32 @@ async function loadStats() {
   // Escaped: stage names come from recorded step names, so they reach an HTML attribute. Newlines
   // survive as-is inside a quoted attribute value and render as separate tooltip lines.
   if (p50) bits.push(`<span title="${esc(stageTooltip(s))}">p50 <b>${p50}</b>/case</span>`);
+  // The Atlas-owned stage, on the bar rather than only in the tooltip above. The case p50 beside it
+  // is mostly LLM time (reason + tool ~= 75% measured), so on its own it invites being read as a
+  // database number; this is the one that actually is one.
+  //
+  // p95/p99 appear only when the server publishes them — it returns null below n=100 because at
+  // small n a "p99" IS the maximum wearing a percentile label. Rather than render a blank or invent
+  // a tail, the chip shows p50 with its sample size, so the number is checkable either way and the
+  // tail appears on its own once enough cases have run. `n` stays visible even WITH the tail: a
+  // percentile without its sample size is not a claim a reader can check.
+  //
+  // Rendered at its widest here and narrowed by fitAtlasChip() below, once it is in the document and
+  // its cost is measurable. The values ride on the element in data-* so a resize can re-fit without
+  // another /api/stats round trip, the same way #counters carries its own total.
+  const atlas = atlasStage(s);
+  if (atlas) {
+    bits.push(`<span id="atlasStage" data-stage="${esc(atlas.name)}" data-p="${esc(JSON.stringify(atlas.p))}" ` +
+              `title="${esc(stageTooltip(s))}">${atlasChipHtml(atlas.name, atlas.p, ATLAS_FITS[0])}</span>`);
+  }
   if (s.scorecard) {
     bits.push(`<span>fraud recall <b class="${s.scorecard.fraudRecall >= 0.95 ? 'good' : ''}">${Math.round(s.scorecard.fraudRecall * 100)}%</b></span>`);
     bits.push(`<span>F1 <b>${s.scorecard.f1Macro.toFixed(2)}</b></span>`);
   }
   $('#stats').innerHTML = bits.join('');
+  // ORDER MATTERS: the chip is inside #stats, so narrowing it changes how much room #stats leaves
+  // over — fit it first, then hand the remaining budget to the tally.
+  fitAtlasChip();
   // #stats and #counters share one row and #stats does not shrink, so this render just changed the
   // tally's entire budget — re-fit it. Matters most as the corpus grows mid-demo: "corpus 12,015"
   // becoming "corpus 1,000,000" takes width straight out of the tally.
@@ -722,7 +833,9 @@ function fitCounters() {
 let fitTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(fitTimer);
-  fitTimer = setTimeout(fitCounters, 120);
+  // Chip first, tally second — same ordering reason as in loadStats(): the chip lives inside #stats,
+  // so its width is part of what the tally's budget is computed against.
+  fitTimer = setTimeout(() => { fitAtlasChip(); fitCounters(); }, 120);
 });
 
 // ---- audit chip + stage banner --------------------------------------------------

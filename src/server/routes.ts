@@ -12,7 +12,7 @@ import { loadTransactionSeed } from '../ingestion/transaction-fixtures';
 import { logger } from '../observability/logger';
 import { newSessionId, signToken, verifyToken, bearer } from './session';
 import { gatherStats, type StatsSnapshot } from './stats';
-import { recordingSource } from '../data/replay-store';
+import { recordingSource, readReplayMeta } from '../data/replay-store';
 
 /**
  * How many recent events `/api/feed` backfills. A run emits one event per pipeline stage PLUS one
@@ -242,9 +242,24 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
   // 100+ concurrent viewers cost one aggregation, not one each.
   let statsCache: { at: number; data: StatsSnapshot } | null = null;
   let statsInFlight: Promise<StatsSnapshot> | null = null;
+  // In demo mode the corpus figures come from the recording, not from this cluster — a replay
+  // reports the run it is replaying, and the replaying box need not hold that corpus at all (see
+  // ReplayMeta). Read once and memoized: `replay_meta` is immutable for the life of the process, so
+  // re-reading it on every 30s cache miss would be a query that can only return the same answer.
+  // A null result (live mode, or an artifact predating `replay_meta`) leaves both fields undefined
+  // and `gatherStats` falls back to the live counts.
+  let replayMeta: Awaited<ReturnType<typeof readReplayMeta>> | undefined;
+  const corpusFromRecording = async () => {
+    if (!cfg.demoMode) return {};
+    replayMeta ??= await readReplayMeta(db);
+    return replayMeta
+      ? { recordedCorpusSize: replayMeta.corpus_size, recordedPrecedents: replayMeta.decided_precedents }
+      : {};
+  };
   app.get('/api/stats', async c => {
     if (statsCache && Date.now() - statsCache.at < 30_000) return c.json(statsCache.data);
-    statsInFlight ??= gatherStats(db, { events: REC.events, analysis: REC.analysis, audit: REC.audit })
+    statsInFlight ??= corpusFromRecording()
+      .then(rec => gatherStats(db, { events: REC.events, analysis: REC.analysis, audit: REC.audit, ...rec }))
       .finally(() => { statsInFlight = null; });
     try {
       const data = await statsInFlight;

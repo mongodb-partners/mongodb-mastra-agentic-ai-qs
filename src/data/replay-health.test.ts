@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkReplayHealth } from './replay-health';
-import { REPLAY_COLLECTIONS } from './replay-store';
+import { REPLAY_COLLECTIONS, REPLAY_META_COLLECTION } from './replay-store';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
 
 /** Events at fixed offsets (ms) from a base instant, one per step. */
@@ -23,12 +23,22 @@ function fakeDb(opts: {
   analyses?: any[];
   events?: any[];
   corpus?: string[];
+  /** Recorded corpus size, when the artifact carries provenance. Absent by default — the
+   *  dangling-id warning only applies to a recording baked against the cluster replaying it. */
+  recordedCorpusSize?: number;
 }) {
   const analyses = opts.analyses ?? [];
   const evs = opts.events ?? [];
   const corpus = (opts.corpus ?? []).map(id => ({ transaction_id: id }));
   return {
     collection(name: string) {
+      if (name === REPLAY_META_COLLECTION) {
+        const meta = opts.recordedCorpusSize == null ? null : {
+          corpus_size: opts.recordedCorpusSize, decided_precedents: opts.recordedCorpusSize,
+          source_db: 'marshal_1m', recorded_at: new Date(0),
+        };
+        return { findOne: async () => meta } as any;
+      }
       if (name === REPLAY_COLLECTIONS.case_analysis) {
         return { find: () => ({ toArray: async () => analyses }) } as any;
       }
@@ -86,6 +96,28 @@ describe('checkReplayHealth — dangling precedents', () => {
       corpus: ['txn-a'],
     });
     expect((await checkReplayHealth(db)).danglingIds).toEqual(['txn-gone']);
+  });
+
+  it('does not warn about absent ids when the recording carries its own corpus size', async () => {
+    // A replay-only box deliberately does not hold the recorded corpus, so every cited id is absent
+    // and that is the designed state — precedent content renders inline from replay_analysis.
+    const db = fakeDb({
+      analyses: [analysis(['txn-syn-00016', 'txn-syn-00675'])],
+      events: events(runOffsets(2, 6000)),
+      corpus: ['txn-a'],
+      recordedCorpusSize: 1_000_015,
+    });
+    const health = await checkReplayHealth(db);
+    // Still reported, so an operator can see what the recording points at — just not as a warning.
+    expect(health.danglingIds.sort()).toEqual(['txn-syn-00016', 'txn-syn-00675']);
+    expect(health.recordedCorpusSize).toBe(1_000_015);
+    expect(health.warnings).toEqual([]);
+    expect(health.ok).toBe(true);
+  });
+
+  it('reports recordedCorpusSize as null when the artifact predates the provenance doc', async () => {
+    const db = fakeDb({ analyses: [], events: [], corpus: ['txn-a'] });
+    expect((await checkReplayHealth(db)).recordedCorpusSize).toBeNull();
   });
 
   it('tolerates a hard-compliance case with no precedents at all', async () => {

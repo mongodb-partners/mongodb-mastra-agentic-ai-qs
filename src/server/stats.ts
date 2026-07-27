@@ -195,8 +195,27 @@ export function buildStageShare(durations: Record<string, number[]>): Record<str
   return Object.fromEntries(totals.map(([k, v]) => [k, Number((v / grand).toFixed(4))]));
 }
 
-/** Which collections the scorecard/latency/audit counts come from (working vs. immutable replay). */
-export interface StatsSource { events: string; analysis: string; audit: string }
+/**
+ * Which collections the scorecard/latency/audit counts come from (working vs. immutable replay),
+ * plus the corpus size the recording was produced against when replaying one.
+ */
+export interface StatsSource {
+  events: string;
+  analysis: string;
+  audit: string;
+  /**
+   * Corpus size recorded WITH the recording, used for `counts.transactions` in demo mode.
+   *
+   * A replay reports the run it is replaying. Every other number here already comes from the
+   * `replay_*` copies; this was the last one still counted off the local cluster, so a recorded
+   * 1M run replayed on a small cluster reported the small cluster and understated itself. Undefined
+   * in live mode and for pre-`replay_meta` artifacts, both of which fall back to the live count.
+   */
+  recordedCorpusSize?: number;
+  /** Decided-precedent count from the same recording. Travels with `recordedCorpusSize` or not at
+   *  all — the two sit side by side in the status bar and must describe one cluster. */
+  recordedPrecedents?: number;
+}
 const DEFAULT_SOURCE: StatsSource = { events: 'agent_events', analysis: 'case_analysis', audit: 'audit_trail' };
 
 /**
@@ -206,7 +225,7 @@ const DEFAULT_SOURCE: StatsSource = { events: 'agent_events', analysis: 'case_an
  */
 export async function gatherStats(db: Db, src: StatsSource = DEFAULT_SOURCE): Promise<StatsSnapshot> {
   const tx = db.collection('transactions');
-  const [transactions, precedents, pending, policies, auditEvents, agentEvents, investigated] = await Promise.all([
+  const [liveTransactions, livePrecedents, pending, policies, auditEvents, agentEvents, investigated] = await Promise.all([
     tx.estimatedDocumentCount(),
     tx.countDocuments({ status: { $in: [...DECIDED_STATUSES] } }),
     tx.countDocuments({ status: 'pending' }),
@@ -239,6 +258,11 @@ export async function gatherStats(db: Db, src: StatsSource = DEFAULT_SOURCE): Pr
       .map(([k, v]) => [k, buildStagePercentiles(v)] as const)
       .filter(([, v]) => v !== null),
   ) as Record<string, StagePercentiles>;
+
+  // Prefer the recorded corpus when replaying; the `??` fallbacks cover live mode and artifacts
+  // exported before the recording carried its provenance.
+  const transactions = src.recordedCorpusSize ?? liveTransactions;
+  const precedents = src.recordedPrecedents ?? livePrecedents;
 
   return {
     counts: {
