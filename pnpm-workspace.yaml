@@ -1,8 +1,19 @@
 allowBuilds:
   esbuild: true
-# Force patched dev/build tooling across the tree (all transitive via vitest/mastra/tsx, none ship
-# in the runtime image). Resolves Dependabot alerts: vite fs.deny bypass + path traversal (< 6.4.3),
-# esbuild dev-server request smuggling (< 0.25).
+# Force patched transitive dependencies across the tree. Each entry exists because the direct
+# dependency that pulls it in has not yet released a bump, so the override is the only way to get
+# the patched version without pinning ourselves off the upstream release train.
+#
+# Dev/build tooling (transitive via vitest/mastra/tsx; none of it ships in the runtime image):
+#   vite     — server.fs.deny bypass + path traversal (< 6.4.3)
+#   esbuild  — dev-server request smuggling (< 0.25)
+#   postcss  — transitive via vite (<= 8.5.17)
+# Runtime:
+#   fast-uri — transitive via ajv under @mastra/core (>= 3.0.0, <= 3.1.3)
 overrides:
   vite: "^6.4.3"
   esbuild: ">=0.25.0"
+  postcss: ">=8.5.18"
+  # ^3.1.4, not >=3.1.4: ajv declares a ^3 range, and an unbounded override resolves to 4.x —
+  # a major bump outside what its consumer was tested against.
+  fast-uri: "^3.1.4"

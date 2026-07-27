@@ -7,6 +7,8 @@ settings:
 overrides:
   vite: ^6.4.3
   esbuild: '>=0.25.0'
+  postcss: '>=8.5.18'
+  fast-uri: ^3.1.4
 
 importers:
 
@@ -25,8 +27,8 @@ importers:
         specifier: ^3.1081.0
         version: 3.1081.0
       '@hono/node-server':
-        specifier: ^2.0.8
-        version: 2.0.8(hono@4.12.29)
+        specifier: ^2.0.12
+        version: 2.0.12(hono@4.12.29)
       '@mastra/core':
         specifier: 1.50.1
         version: 1.50.1(express@5.2.1)(zod@3.25.76)
@@ -48,7 +50,7 @@ importers:
         version: 22.20.1
       mastra:
         specifier: ^1.18.0
-        version: 1.18.2(@hono/node-server@2.0.8(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)
+        version: 1.18.2(@hono/node-server@2.0.12(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)
       tsx:
         specifier: ^4
         version: 4.23.0
@@ -521,14 +523,14 @@ packages:
   '@expo/sudo-prompt@9.3.2':
     resolution: {integrity: sha512-HHQigo3rQWKMDzYDLkubN5WQOYXJJE2eNqIQC2axC2iO3mHdwnIR7FgZVvHWtBwAdzBgAP0ECp8KqS8TiMKvgw==}
 
-  '@hono/node-server@1.19.14':
-    resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
+  '@hono/node-server@1.19.15':
+    resolution: {integrity: sha512-Za2ai6TLdKjUvnur+eenO6nuYYipVAEhyCAdaV8IRvmU9kK8crOZUSYvIXn72E4f8fJqyAbpcJuTsYYmZp9Deg==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
 
-  '@hono/node-server@2.0.8':
-    resolution: {integrity: sha512-GuCWzLxwg218fy1JaHculFsdcuY12hxit83V+algozTPnwhNjLrRL/Alg9OYjLZLoUZ1rw/S4CdTMsnkSKCmFA==}
+  '@hono/node-server@2.0.12':
+    resolution: {integrity: sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4
@@ -1511,8 +1513,8 @@ packages:
   fast-string-width@3.0.2:
     resolution: {integrity: sha512-gX8LrtNEI5hq8DVUfRQMbr5lpaS4nMIWV+7XEbXk2b8kiQIizgnlr12B4dA3ZEx3308ze0O4Q1R+cHts8kyUJg==}
 
-  fast-uri@3.1.3:
-    resolution: {integrity: sha512-i70LwGWUduXqzicKXWshooq+sWL1K3WUU5rKZNG/0i3a1OSoX3HqhH5WbWwTmqWfor4urUakGPiRQcleRZTwOg==}
+  fast-uri@3.1.4:
+    resolution: {integrity: sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw==}
 
   fast-wrap-ansi@0.2.2:
     resolution: {integrity: sha512-7F2Fl+TjRSenLqlU3UjSH0iyqopqoZIu7eZVpEirP2g1GtWa2G/ecEmBdgz31+Mxr+ELclgg6sokpSFIQiZ02Q==}
@@ -2030,8 +2032,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  nanoid@3.3.15:
-    resolution: {integrity: sha512-y7Wygv/7mEOvxTuEQDB8StXdMRBWf1kR/tlhAzBRUFkB2jfcLOAxO/SHmOO2zgz1pVgK29/kyupn059/bCHdjA==}
+  nanoid@3.3.16:
+    resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -2179,8 +2181,8 @@ packages:
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
 
-  postcss@8.5.17:
-    resolution: {integrity: sha512-J7EF+8X+CzRPaJPOv9Ck2wNWJvGnnl3PcNPAdGg6GTLjyVpyQ0yATMSXRFRV01BviT/9Gwuc3rjEyJbDJG9a4w==}
+  postcss@8.5.23:
+    resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
   posthog-node@5.41.0:
@@ -2851,7 +2853,7 @@ snapshots:
   '@ai-sdk/provider-utils@2.2.8(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 1.1.3
-      nanoid: 3.3.15
+      nanoid: 3.3.16
       secure-json-parse: 2.7.0
       zod: 3.25.76
 
@@ -3370,17 +3372,17 @@ snapshots:
 
   '@expo/sudo-prompt@9.3.2': {}
 
-  '@hono/node-server@1.19.14(hono@4.12.29)':
+  '@hono/node-server@1.19.15(hono@4.12.29)':
     dependencies:
       hono: 4.12.29
 
-  '@hono/node-server@2.0.8(hono@4.12.29)':
+  '@hono/node-server@2.0.12(hono@4.12.29)':
     dependencies:
       hono: 4.12.29
 
-  '@hono/node-ws@1.3.1(@hono/node-server@2.0.8(hono@4.12.29))(hono@4.12.29)':
+  '@hono/node-ws@1.3.1(@hono/node-server@2.0.12(hono@4.12.29))(hono@4.12.29)':
     dependencies:
-      '@hono/node-server': 2.0.8(hono@4.12.29)
+      '@hono/node-server': 2.0.12(hono@4.12.29)
       hono: 4.12.29
       ws: 8.21.0
     transitivePeerDependencies:
@@ -3460,12 +3462,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@mastra/deployer@1.50.1(@hono/node-server@2.0.8(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)':
+  '@mastra/deployer@1.50.1(@hono/node-server@2.0.12(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/preset-typescript': 7.29.7(@babel/core@7.29.7)
       '@babel/traverse': 7.29.7
-      '@hono/node-ws': 1.3.1(@hono/node-server@2.0.8(hono@4.12.29))(hono@4.12.29)
+      '@hono/node-ws': 1.3.1(@hono/node-server@2.0.12(hono@4.12.29))(hono@4.12.29)
       '@mastra/core': 1.50.1(express@5.2.1)(zod@3.25.76)
       '@mastra/server': 1.50.1(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(zod@3.25.76)
       '@optimize-lodash/rollup-plugin': 5.1.0(rollup@4.62.2)
@@ -3521,7 +3523,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.29)
+      '@hono/node-server': 1.19.15(hono@4.12.29)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -3863,14 +3865,14 @@ snapshots:
   ajv@8.18.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.3
+      fast-uri: 3.1.4
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.3
+      fast-uri: 3.1.4
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -4389,7 +4391,7 @@ snapshots:
     dependencies:
       fast-string-truncated-width: 3.0.3
 
-  fast-uri@3.1.3: {}
+  fast-uri@3.1.4: {}
 
   fast-wrap-ansi@0.2.2:
     dependencies:
@@ -4638,14 +4640,14 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  mastra@1.18.2(@hono/node-server@2.0.8(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76):
+  mastra@1.18.2(@hono/node-server@2.0.12(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76):
     dependencies:
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
       '@clack/prompts': 1.7.0
       '@expo/devcert': 1.2.1
       '@mastra/core': 1.50.1(express@5.2.1)(zod@3.25.76)
-      '@mastra/deployer': 1.50.1(@hono/node-server@2.0.8(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)
+      '@mastra/deployer': 1.50.1(@hono/node-server@2.0.12(hono@4.12.29))(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))(typescript@5.9.3)(zod@3.25.76)
       '@mastra/loggers': 1.2.0(@mastra/core@1.50.1(express@5.2.1)(zod@3.25.76))
       archiver: 8.0.0
       commander: 14.0.3
@@ -5034,7 +5036,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  nanoid@3.3.15: {}
+  nanoid@3.3.16: {}
 
   negotiator@0.6.4: {}
 
@@ -5165,9 +5167,9 @@ snapshots:
       exsolve: 1.1.0
       pathe: 2.0.3
 
-  postcss@8.5.17:
+  postcss@8.5.23:
     dependencies:
-      nanoid: 3.3.15
+      nanoid: 3.3.16
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -5733,7 +5735,7 @@ snapshots:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.5)
       picomatch: 4.0.5
-      postcss: 8.5.17
+      postcss: 8.5.23
       rollup: 4.62.2
       tinyglobby: 0.2.17
     optionalDependencies:
