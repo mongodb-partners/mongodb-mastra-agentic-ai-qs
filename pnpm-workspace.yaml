@@ -9,11 +9,28 @@ allowBuilds:
 #   esbuild  — dev-server request smuggling (< 0.25)
 #   postcss  — transitive via vite (<= 8.5.17)
 # Runtime:
-#   fast-uri — transitive via ajv under @mastra/core (>= 3.0.0, <= 3.1.3)
+#   fast-uri          — transitive via ajv under @mastra/core (>= 3.0.0, <= 3.1.3)
+#   @hono/node-server — serve-static path traversal via encoded backslash (< 2.0.5). Our own
+#     dependency is already 2.0.12, but @modelcontextprotocol/sdk (under @mastra/core) pulled a
+#     SECOND, vulnerable 1.19.15 copy into the tree — and src/server/app.ts uses exactly the
+#     affected `serveStatic` export, so a stale duplicate is not academic. The override collapses
+#     both to one patched version.
+#
+# NOT overridable — @ai-sdk/provider-utils (CVE-2026-8769, low, <= 3.0.97):
+#   @mastra/core vendors several AI-SDK majors SIDE BY SIDE under aliases
+#   (@ai-sdk/provider-utils-v5 / -v6 / -v7), so the flagged 2.2.8 and 3.0.25 copies are pinned
+#   inside its own resolution and no override reaches them — measured: a ">=3.0.98" floor drops
+#   2.2.8 but leaves 3.0.25, and a ">=5.0.7" floor changes nothing. Upstream has no patched 3.x,
+#   and @mastra/core 1.51.0 still aliases 3.0.28, which is inside the vulnerable range.
+#   Not exploitable here: the affected code is createJsonResponseHandler, which parses LLM
+#   PROVIDER responses, and Marshal's only provider path (@ai-sdk/amazon-bedrock) resolves to the
+#   unaffected 5.0.7. The flagged copies back the legacy @ai-sdk/ui-utils surface, which nothing
+#   in src/ imports. Revisit when @mastra/core retires its v5 alias.
 overrides:
   vite: "^6.4.3"
   esbuild: ">=0.25.0"
   postcss: ">=8.5.18"
+  "@hono/node-server": "^2.0.12"
   # ^3.1.4, not >=3.1.4: ajv declares a ^3 range, and an unbounded override resolves to 4.x —
   # a major bump outside what its consumer was tested against.
   fast-uri: "^3.1.4"
