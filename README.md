@@ -10,6 +10,8 @@ Deterministic rules run before the model and after it, and only those rules deci
 short-circuits before any token is spent, and post-model reconciliation may only ever tighten a
 verdict. See [docs/architecture.md](docs/architecture.md).
 
+![Marshal: an investigation pipeline where deterministic rules bracket the model, on a single MongoDB Atlas cluster](docs/images/marshal-overview.png)
+
 ## Capabilities on one cluster
 
 | Capability | Operator or feature | Where |
