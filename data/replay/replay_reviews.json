@@ -1,18 +1,21 @@
 [
   {
     "_id": {
-      "$oid": "6a65ff90ed471c423d4570ba"
+      "$oid": "6a679b9441bad7058e84d4b8"
     },
     "transaction_id": "txn-review-high",
     "created_at": {
       "$date": {
-        "$numberLong": "1785069456692"
+        "$numberLong": "1785174932730"
       }
     },
-    "evidence_hash": "4333a813ec315ffe17f0d1ccbd14994549a75f7aea6c717b2bfa59cc00b4efa2",
-    "flag_reason": "high_value_approval",
+    "evidence_hash": "c2cb91b7521e4fdf4b96f91451f671013b7883af3a52be79b556789fab00080b",
+    "flag_reason": "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
     "rules_triggered": [
-      "high_value_approval"
+      "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
+      "Recalled verdicts show similar high-value commodities transactions often escalated; however, direct precedent for this counterparty pair was approved",
+      "high_value_approval",
+      "low_confidence"
     ],
     "snapshot": {
       "transaction_id": "txn-review-high",
@@ -21,7 +24,10 @@
         "$numberInt": "75000"
       },
       "risk_factors": [
-        "high_value_approval"
+        "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
+        "Recalled verdicts show similar high-value commodities transactions often escalated; however, direct precedent for this counterparty pair was approved",
+        "high_value_approval",
+        "low_confidence"
       ],
       "compliance_score": {
         "$numberDouble": "0.85"
@@ -31,22 +37,22 @@
   },
   {
     "_id": {
-      "$oid": "6a65ffa5ed471c423d4570bf"
+      "$oid": "6a679ba041bad7058e84d4bd"
     },
     "transaction_id": "txn-review-struct",
     "created_at": {
       "$date": {
-        "$numberLong": "1785069477977"
+        "$numberLong": "1785174944722"
       }
     },
-    "evidence_hash": "0e327042d968ad45e5acdaf81dd7952104f8852fc1cb38670392eff9dbd5f6c7",
-    "flag_reason": "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
+    "evidence_hash": "b7e82aae24e459d772910aa0dc61e08f073324dd5365a904b11ace3b9f79635a",
+    "flag_reason": "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
     "rules_triggered": [
-      "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
-      "Transaction is the third in a series of sub-threshold deposits within a short period, consistent with reported precedent cases",
-      "Five highly similar precedent transactions (txn-syn-00016, txn-syn-00024, txn-syn-00039, txn-syn-00042, txn-syn-00047) all flagged as structuring and escalated",
-      "Structuring is a federal offense under 31 U.S.C. § 5324 regardless of the underlying source of funds",
-      "Sender account_number not provided, limiting tracing scope",
+      "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
+      "Third in a series of sub-threshold deposits over short timeframe—classic structuring pattern",
+      "Precedent cases show identical structuring signatures, with 60% prior escalation disposition",
+      "Deliberate structuring intent evident from systematic avoidance of reporting threshold",
+      "High structuring confidence combined with ambiguity over beneficial owner and source of funds warrants human review",
       "structuring_amount",
       "fraud_ring_suspicious",
       "agent_requested_escalation"
@@ -58,11 +64,11 @@
         "$numberInt": "4950"
       },
       "risk_factors": [
-        "Deposit amount $4,950 is $50 below the $5,000 reporting threshold, suggestive of deliberate structuring",
-        "Transaction is the third in a series of sub-threshold deposits within a short period, consistent with reported precedent cases",
-        "Five highly similar precedent transactions (txn-syn-00016, txn-syn-00024, txn-syn-00039, txn-syn-00042, txn-syn-00047) all flagged as structuring and escalated",
-        "Structuring is a federal offense under 31 U.S.C. § 5324 regardless of the underlying source of funds",
-        "Sender account_number not provided, limiting tracing scope",
+        "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
+        "Third in a series of sub-threshold deposits over short timeframe—classic structuring pattern",
+        "Precedent cases show identical structuring signatures, with 60% prior escalation disposition",
+        "Deliberate structuring intent evident from systematic avoidance of reporting threshold",
+        "High structuring confidence combined with ambiguity over beneficial owner and source of funds warrants human review",
         "structuring_amount",
         "fraud_ring_suspicious",
         "agent_requested_escalation"
@@ -75,22 +81,22 @@
   },
   {
     "_id": {
-      "$oid": "6a65ffc1ed471c423d4570c6"
+      "$oid": "6a679bc241bad7058e84d4c4"
     },
     "transaction_id": "txn-review-ring",
     "created_at": {
       "$date": {
-        "$numberLong": "1785069505827"
+        "$numberLong": "1785174978181"
       }
     },
-    "evidence_hash": "9a3a3ab11a18eb13bb6fa2d1edec5d88c3beeb47510221687d2a4f0f7b243a01",
-    "flag_reason": "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
+    "evidence_hash": "a1df6c08c3df9e4319c01429e685e5594d0e169e455a850b9023da472332602f",
+    "flag_reason": "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
     "rules_triggered": [
-      "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
-      "Amount ($900 USD) falls within range of other mule-ring layering transactions that were escalated or rejected",
-      "Circular-flow pattern explicitly mentioned in transaction description aligns with known layering schemes",
-      "Vertex Holdings recipient is an unknown entity with no prior transaction history in database",
-      "Fund-trace account-level analysis incomplete or account not queryable as individual entity",
+      "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
+      "Transfer amount (900 USD) matches structuring pattern observed in 5+ rejected mule-ring precedents (620-1919 USD range)",
+      "Recipient account Vertex Holdings appears in mule-network topology per case narrative",
+      "Discrepancy between user-reported mule-network status and trace_funds output (no active network detected); requires manual verification",
+      "Prior cases in identical ring/lane category uniformly rejected",
       "fraud_ring_suspicious",
       "low_confidence",
       "agent_requested_escalation"
@@ -102,11 +108,11 @@
         "$numberInt": "900"
       },
       "risk_factors": [
-        "Sender (Quartz Trading) is part of suspected mule network flagged in prior rejected cases",
-        "Amount ($900 USD) falls within range of other mule-ring layering transactions that were escalated or rejected",
-        "Circular-flow pattern explicitly mentioned in transaction description aligns with known layering schemes",
-        "Vertex Holdings recipient is an unknown entity with no prior transaction history in database",
-        "Fund-trace account-level analysis incomplete or account not queryable as individual entity",
+        "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
+        "Transfer amount (900 USD) matches structuring pattern observed in 5+ rejected mule-ring precedents (620-1919 USD range)",
+        "Recipient account Vertex Holdings appears in mule-network topology per case narrative",
+        "Discrepancy between user-reported mule-network status and trace_funds output (no active network detected); requires manual verification",
+        "Prior cases in identical ring/lane category uniformly rejected",
         "fraud_ring_suspicious",
         "low_confidence",
         "agent_requested_escalation"

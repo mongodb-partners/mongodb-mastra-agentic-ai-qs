@@ -1,0 +1,19 @@
+[
+  {
+    "_id": {
+      "$oid": "6a679caeb25c8077669cca67"
+    },
+    "corpus_size": {
+      "$numberInt": "1000015"
+    },
+    "decided_precedents": {
+      "$numberInt": "1000012"
+    },
+    "source_db": "marshal_1m",
+    "recorded_at": {
+      "$date": {
+        "$numberLong": "1785175214689"
+      }
+    }
+  }
+]
