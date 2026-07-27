@@ -7,3 +7,11 @@ dist
 *.log
 .DS_Store
 .playwright-cli/
+.scratch/
+.superpowers/
+# Terraform state and generated plans (deploy/terraform)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars

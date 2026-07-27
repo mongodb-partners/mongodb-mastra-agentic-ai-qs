@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Decimal128 } from 'mongodb';
 import { loadTransactionSeed, EXPECTED_DISPOSITION } from './transaction-fixtures';
 import { LANES, TransactionSchema } from '../mastra/schemas/transactions';
 
@@ -47,5 +48,23 @@ describe('transaction seed corpus', () => {
     const senders = new Set(ring.map(r => r.sender.account_number));
     const recipients = ring.map(r => r.recipient.account_number);
     expect(recipients.some(r => senders.has(r))).toBe(true);
+  });
+});
+
+describe('seed fixture amounts', () => {
+  it('coerces every JSON amount literal to a Decimal128', () => {
+    for (const r of loadTransactionSeed()) {
+      expect(r.amount).toBeInstanceOf(Decimal128);
+      expect((r.amount as unknown as Decimal128).toString()).toMatch(/^\d+\.\d{2}$/);
+    }
+  });
+
+  it('preserves each fixture amount value', () => {
+    const byId = new Map(loadTransactionSeed().map(r => [r.transaction_id, r]));
+    // Spot-check the structuring fixture, which the decision rules key on.
+    const structuring = [...byId.values()].find(r => r.lane === 'structuring');
+    expect(structuring).toBeDefined();
+    expect(Number((structuring!.amount as unknown as Decimal128).toString())).toBeGreaterThanOrEqual(4900);
+    expect(Number((structuring!.amount as unknown as Decimal128).toString())).toBeLessThanOrEqual(4999);
   });
 });

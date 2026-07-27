@@ -167,7 +167,7 @@ variable "llm_model" {
 }
 
 variable "llm_base_url" {
-  description = "Optional gateway base URL for the LLM (e.g. an APIM/Grove Anthropic endpoint). Empty ⇒ direct provider. Only used in live mode."
+  description = "Optional gateway base URL for the LLM (e.g. an Anthropic-compatible API gateway). Empty ⇒ direct provider. Only used in live mode."
   type        = string
   default     = ""
 }
@@ -208,7 +208,7 @@ variable "voyage_api_key" {
   sensitive   = true
 }
 
-variable "grove_api_key" {
+variable "llm_gateway_api_key" {
   description = "Gateway API key for the LLM (sent as the api-key header when llm_base_url is a gateway). Only needed for LIVE mode; leave empty for a demo-mode box."
   type        = string
   default     = ""

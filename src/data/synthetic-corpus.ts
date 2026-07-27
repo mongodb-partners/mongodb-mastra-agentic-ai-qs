@@ -1,4 +1,6 @@
+import type { Decimal128 } from 'mongodb';
 import type { Transaction, Lane, DecidedStatus } from '../mastra/schemas/transactions';
+import { toMoney } from '../money';
 
 /**
  * Synthetic decided-precedent corpus — the "deployment at scale" story. Every record is a
@@ -12,7 +14,11 @@ import type { Transaction, Lane, DecidedStatus } from '../mastra/schemas/transac
 
 export const SYNTHETIC_ID_PREFIX = 'txn-syn-';
 
-export type SyntheticTransaction = Omit<Transaction, 'embedding'>;
+/**
+ * A generated precedent record. `amount` is narrowed from the schema's `MoneySchema` union to
+ * `Decimal128` — the generator always emits the stored type, so consumers need no type guard.
+ */
+export type SyntheticTransaction = Omit<Transaction, 'embedding' | 'amount'> & { amount: Decimal128 };
 
 /** mulberry32 — tiny deterministic PRNG; good enough for fixture variety. */
 function mulberry32(seed: number): () => number {
@@ -61,6 +67,16 @@ const SANCTIONS_NOTES = [
 ];
 
 const pick = <T>(rng: () => number, arr: T[]): T => arr[Math.floor(rng() * arr.length)];
+/**
+ * Renders an amount into the narrative. Takes a NUMBER, deliberately, and is called before the
+ * amount becomes a Decimal128 (see generateSyntheticCorpus below).
+ *
+ * Do not widen this to accept Decimal128. `text` is what all 1,000,000 stored embeddings and the
+ * 6 GB benchmark export were computed from; rendering "1,256.00" instead of "1,256" would
+ * invalidate every one of them, and nothing would report an error. (Decimal128 even has its own
+ * `toLocaleString`, which returns "1256.00" and silently drops the thousands separators — so a
+ * naive widening would typecheck, run, and quietly change every embedding in the corpus.)
+ */
 const money = (n: number) => n.toLocaleString('en-US');
 
 interface LaneSpec {
@@ -155,9 +171,43 @@ function timestampFor(rng: () => number): Date {
   return new Date(start + rng() * (end - start));
 }
 
+/** Size of the synthetic account pool. Fixed regardless of `count` so that growing the corpus
+ *  raises transactions-per-account rather than minting new accounts. */
+export const ACCOUNT_POOL = 9000;
+
+/**
+ * Accounts are partitioned into communities of this size, and a non-ring transaction stays
+ * inside its sender's community unless it draws a bridge (see BRIDGE_RATE).
+ *
+ * This is what keeps the $graphLookup ring trace inside the 16MB BSON cap at 1M documents.
+ * With a uniform draw over the whole pool, a 1M corpus averages ~111 transactions per account,
+ * so the graph is dense enough that a depth-3 closure reaches ALL 9,000 accounts — the chain
+ * becomes the entire corpus: 929,958 edges, 101.99MB even after the pipeline's $project, which
+ * is 6.4x the hard cap. Measured, not estimated. Communities bound the reachable set to 579
+ * accounts / 4.39MB at 1M — a 3.6x margin, from an exhaustive worst-case seed sweep.
+ * Lowering maxDepth is not an alternative: depth 2 is still 82MB, and only depth 1 fits — and
+ * a one-hop trace is not a ring trace.
+ */
+export const COMMUNITY_SIZE = 50;
+
+/**
+ * Fraction of non-ring transactions that cross community lines. Non-zero on purpose: with no
+ * bridges the communities are disconnected islands and a traversal can never surface anything
+ * unexpected.
+ *
+ * This rate is NOT scale-free — it is tuned for a 1M corpus. Bridges *per community* grow
+ * linearly with `count`, and each hop then reaches that many new communities, so the closure
+ * compounds with depth: at 1M, rate 0.001 gives only a 1.4x margin while 0.0002 gives 3.6x.
+ * Re-run `.scratch/closure-check.mts <count>` before benchmarking at a materially larger count.
+ * Conversely a small corpus is no evidence of safety: 100k passes with an 85x margin.
+ */
+export const BRIDGE_RATE = 0.0002;
+
 /**
  * Ring lanes get REAL cycles: every 3 consecutive ring transactions share a 3-account loop
- * (A→B→C→A), so $graphLookup over the scaled corpus traverses genuine circular flows.
+ * (A→B→C→A), so $graphLookup over the scaled corpus traverses genuine circular flows. Ring
+ * accounts are minted per-group (`ACC-SYNRING-<n>{A,B,C}`) and so are clustered by construction
+ * — the community logic below applies only to the `ACC-SYN-` pool.
  */
 export function generateSyntheticCorpus(count: number, seed = 42): SyntheticTransaction[] {
   const rng = mulberry32(seed);
@@ -168,8 +218,18 @@ export function generateSyntheticCorpus(count: number, seed = 42): SyntheticTran
     const spec = laneFor(rng);
     const g = spec.gen(rng, i);
     const id = `${SYNTHETIC_ID_PREFIX}${String(i + 1).padStart(5, '0')}`;
-    let senderAcc = `ACC-SYN-${1000 + Math.floor(rng() * 9000)}`;
-    let recipientAcc = `ACC-SYN-${1000 + Math.floor(rng() * 9000)}`;
+    // Exactly three draws, every iteration, on every branch — the ring lane overwrites the
+    // account numbers below but must not skip draws, or the whole downstream PRNG stream
+    // shifts and the corpus stops being a strict prefix of a larger one.
+    const senderIdx = Math.floor(rng() * ACCOUNT_POOL);
+    const isBridge = rng() < BRIDGE_RATE;
+    const communityBase = Math.floor(senderIdx / COMMUNITY_SIZE) * COMMUNITY_SIZE;
+    const communitySpan = Math.min(COMMUNITY_SIZE, ACCOUNT_POOL - communityBase);
+    const recipientIdx = isBridge
+      ? Math.floor(rng() * ACCOUNT_POOL)
+      : communityBase + Math.floor(rng() * communitySpan);
+    let senderAcc = `ACC-SYN-${1000 + senderIdx}`;
+    let recipientAcc = `ACC-SYN-${1000 + recipientIdx}`;
     if (spec.lane === 'ring') {
       if (ringCursor === 0) ringGroup++;
       const ring = ['A', 'B', 'C'].map(s => `ACC-SYNRING-${ringGroup}${s}`);
@@ -180,7 +240,9 @@ export function generateSyntheticCorpus(count: number, seed = 42): SyntheticTran
     out.push({
       transaction_id: id,
       text: g.text,
-      amount: g.amount,
+      // Converted HERE and nowhere earlier: the lane generators and money() both work in plain
+      // numbers, so g.text is already rendered and cannot be affected by the type change.
+      amount: toMoney(g.amount),
       currency: 'USD',
       sender: { name: g.sender, account_number: senderAcc },
       recipient: { name: g.recipient, account_number: recipientAcc },

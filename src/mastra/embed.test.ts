@@ -25,8 +25,19 @@ describe('embed', () => {
     expect(calls[0].model).toBe(EMBED_MODEL);
   });
 
-  it('defaults to voyage-3.5', () => {
-    expect(EMBED_MODEL).toBe('voyage-3.5');
+  it('defaults to voyage-4', () => {
+    expect(EMBED_MODEL).toBe('voyage-4');
+  });
+
+  it('uses ONE model for both queries and documents, so they cannot drift apart', async () => {
+    // The P@1=0.10 failure mode is a document corpus embedded by one generation and queried by
+    // another. It raises no error — dimensions still match. The only structural defence is that
+    // there is a single constant, so assert the two paths really do send the same model.
+    const { client, calls } = fakeClient();
+    const emb = createVoyageEmbedder({ client });
+    await emb.embedQuery('q');
+    await emb.embedDocuments(['d']);
+    expect(calls.map(c => c.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
   });
 
   it('embedQuery returns the vector for index 0 and tags the input as a query', async () => {

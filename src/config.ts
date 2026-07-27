@@ -52,8 +52,8 @@ const EnvSchema = z.object({
   LLM_PROVIDER: z.enum(['anthropic', 'openai', 'bedrock']).default('anthropic'),
   LLM_MODEL: z.string().min(1).default('claude-haiku-4-5'),
   LLM_BASE_URL: z.string().optional(),
-  // Gateway key sent as the `api-key` header when LLM_BASE_URL points at an APIM gateway.
-  GROVE_API_KEY: z.string().optional(),
+  // Gateway key sent as the `api-key` header when LLM_BASE_URL points at an API gateway.
+  LLM_GATEWAY_API_KEY: z.string().optional(),
   BEDROCK_REGION: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(8000),
   RRF_K: z.coerce.number().int().positive().default(60),
@@ -106,7 +106,7 @@ export function loadConfig(
     llmProvider: e.LLM_PROVIDER,
     llmModel: e.LLM_MODEL,
     llmBaseUrl: e.LLM_BASE_URL,
-    llmGatewayApiKey: e.GROVE_API_KEY,
+    llmGatewayApiKey: e.LLM_GATEWAY_API_KEY,
     bedrockRegion: e.BEDROCK_REGION,
     port: e.PORT,
     rrfK: e.RRF_K,

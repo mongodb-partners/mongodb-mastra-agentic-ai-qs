@@ -7,7 +7,7 @@
     "transaction_id": "txn-review-high",
     "step": "triage",
     "headline": "Investigating txn-review-high",
-    "detail": "$75,000 · high_value",
+    "detail": "$75,000.00 · high_value",
     "capability": null,
     "ts": {
       "$date": {
@@ -211,7 +211,7 @@
     "transaction_id": "txn-review-sanctions",
     "step": "triage",
     "headline": "Investigating txn-review-sanctions",
-    "detail": "$18,000 · sanctions",
+    "detail": "$18,000.00 · sanctions",
     "capability": null,
     "ts": {
       "$date": {
@@ -266,7 +266,7 @@
     "transaction_id": "txn-review-struct",
     "step": "triage",
     "headline": "Investigating txn-review-struct",
-    "detail": "$4,950 · structuring",
+    "detail": "$4,950.00 · structuring",
     "capability": null,
     "ts": {
       "$date": {
@@ -470,7 +470,7 @@
     "transaction_id": "txn-review-clean",
     "step": "triage",
     "headline": "Investigating txn-review-clean",
-    "detail": "$3,200 · clean_approve",
+    "detail": "$3,200.00 · clean_approve",
     "capability": null,
     "ts": {
       "$date": {
@@ -674,7 +674,7 @@
     "transaction_id": "txn-review-reject",
     "step": "triage",
     "headline": "Investigating txn-review-reject",
-    "detail": "$1,980 · clear_reject",
+    "detail": "$1,980.00 · clear_reject",
     "capability": null,
     "ts": {
       "$date": {
@@ -878,7 +878,7 @@
     "transaction_id": "txn-review-ring",
     "step": "triage",
     "headline": "Investigating txn-review-ring",
-    "detail": "$900 · ring",
+    "detail": "$900.00 · ring",
     "capability": null,
     "ts": {
       "$date": {

@@ -3,6 +3,7 @@ import { loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
 import {
   assertRankFusionSupported, provisionTransactionVectorIndex, provisionTransactionSearchIndex,
+  provisionGraphIndexes,
 } from '../src/data/provision-transactions';
 import { seedTransactions, seedSyntheticCorpus, countDecidedPrecedents } from '../src/data/seed-transactions';
 import { runSearchSelfCheck } from '../src/data/search-self-check';
@@ -21,7 +22,11 @@ async function main() {
 
     await assertRankFusionSupported(db);
     await provisionTransactionVectorIndex(db);
-    await provisionTransactionSearchIndex(db);
+    // RECREATE_SEARCH_INDEX=1 drops and rebuilds the BM25 index. Needed whenever the mapping in
+    // provisionTransactionSearchIndex changes, because Atlas cannot update a mapping in place and
+    // the function is otherwise a no-op on a cluster that already has the index. Off by default:
+    // a rebuild leaves the collection with no lexical index while it builds.
+    await provisionTransactionSearchIndex(db, { recreate: process.env.RECREATE_SEARCH_INDEX === '1' });
 
     // Standard indexes: upserts key on transaction_id; the queue sorts by created_at; the stats
     // readout and precedent filter count by status. Matters once the corpus is 1,000+ docs.
@@ -30,6 +35,11 @@ async function main() {
     await txCol.createIndex({ created_at: -1 }).catch(() => {});
     await txCol.createIndex({ status: 1 }).catch(() => {});
     await db.collection('agent_events').createIndex({ transaction_id: 1, ts: 1 }).catch(() => {});
+
+    // Graph traversal indexes. Deliberately NOT .catch()-swallowed like the four above: a missing
+    // graph index doesn't fail the ring trace, it silently degrades it to a collection scan per
+    // depth level. See provisionGraphIndexes.
+    await provisionGraphIndexes(db);
 
     const embedder = getQueryEmbedder(cfg);
     const embed = (texts: string[]) => Promise.all(texts.map(t => embedder.embedQuery(t)));

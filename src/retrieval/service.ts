@@ -4,13 +4,15 @@ import {
   summarizeRing, type RingSummary,
 } from './pipelines';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
+import type { MoneyLike } from '../money';
 
 export type EmbedQuery = (text: string) => Promise<number[]>;
 
 export interface RetrievalHit {
   transaction_id: string;
   text: string;
-  amount: number;
+  /** Decimal128 as read from the collection; a number for any document written pre-migration. */
+  amount: MoneyLike;
   currency: string;
   sender: { name: string; account_number: string };
   recipient: { name: string; account_number: string };
@@ -59,6 +61,9 @@ export class RetrievalService {
     const edges = ((doc as any).chain ?? []).map((e: any) => ({
       from: e?.sender?.account_number ?? '?',
       to: e?.recipient?.account_number ?? '?',
+      // A plain number deliberately, unlike RetrievalHit.amount: these edges go to the UI as JSON
+      // and to ringSvg for arithmetic. `Number()` handles both representations — it coerces a
+      // Decimal128 through toString() — so this needs no money helper.
       amount: Number(e?.amount ?? 0),
     }));
     return { ...summary, edges };

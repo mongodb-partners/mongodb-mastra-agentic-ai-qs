@@ -1,6 +1,7 @@
 import { triage, reconcile, type TxnFacts, type AgentVerdict, type DecisionResult } from '../decision/core';
 import { evidenceHash, evidenceMatches, type EvidenceSnapshot } from './evidence';
 import { commitCaseDecision, enqueueReview } from './case-store';
+import { moneyToNumber } from '../money';
 import type { Db } from 'mongodb';
 
 export interface InvestigationOutcome {
@@ -35,7 +36,7 @@ export async function runCaseInvestigation(
     const snapshot: EvidenceSnapshot = {
       transaction_id: facts.transaction_id,
       proposed_disposition: decision.disposition,
-      amount: facts.amount,
+      amount: moneyToNumber(facts.amount),
       risk_factors: decision.risk_factors,
       compliance_score: complianceScore,
     };

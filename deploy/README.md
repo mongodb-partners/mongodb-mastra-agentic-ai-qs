@@ -70,7 +70,7 @@ fast if it's private. Make the repo public (or point at a public mirror) before 
 ## Live mode (optional)
 
 To run the real agent instead of the replay, set `demo_mode = "0"` in tfvars and supply the LLM
-gateway config: `llm_base_url` in tfvars and `TF_VAR_grove_api_key` in the env. `NODE_ENV=production`
+gateway config: `llm_base_url` in tfvars and `TF_VAR_llm_gateway_api_key` in the env. `NODE_ENV=production`
 (the default) then requires real `AUDIT_SECRET`/`SESSION_SECRET`; the wrapper generates both.
 
 ## BYO cluster

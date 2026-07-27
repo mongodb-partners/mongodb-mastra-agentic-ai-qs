@@ -6,6 +6,7 @@ import { ChangeStreamHub } from './change-stream-sse';
 import { AuditStore } from '../governance/audit-store';
 import { resolveReview } from '../workflow/investigate';
 import type { EvidenceSnapshot } from '../workflow/evidence';
+import { moneyToNumber } from '../money';
 import { runPendingInvestigations } from '../workflow/run-engine';
 import { loadTransactionSeed } from '../ingestion/transaction-fixtures';
 import { logger } from '../observability/logger';
@@ -33,7 +34,10 @@ async function deriveEvidenceSnapshot(db: Db, transactionId: string): Promise<Ev
   return {
     transaction_id: transactionId,
     proposed_disposition: a.decision?.disposition,
-    amount: txn.amount,
+    // `txn.amount` is a Decimal128 in a migrated collection and a number in an un-migrated one.
+    // Normalizing makes the re-derived hash a function of the value, so it matches the hash
+    // captured at suspend-time either way. Without this, every held case resolves 409 stale.
+    amount: moneyToNumber(txn.amount),
     risk_factors: a.decision?.risk_factors ?? [],
     compliance_score: a.governance?.compliance_score ?? 0,
   } as EvidenceSnapshot;

@@ -72,15 +72,15 @@ locals {
   # and the app falls back to its dev defaults (fine in demo mode).
   secure_keys = toset(concat(
     ["MONGODB_URI", "VOYAGE_API_KEY"], # always set
-    nonsensitive(var.grove_api_key != "") ? ["GROVE_API_KEY"] : [],
+    nonsensitive(var.llm_gateway_api_key != "") ? ["LLM_GATEWAY_API_KEY"] : [],
     nonsensitive(var.audit_secret != "") ? ["AUDIT_SECRET"] : [],
     nonsensitive(var.session_secret != "") ? ["SESSION_SECRET"] : [],
   ))
   secure_values = {
-    MONGODB_URI    = local.mongodb_uri
-    VOYAGE_API_KEY = var.voyage_api_key
-    GROVE_API_KEY  = var.grove_api_key
-    AUDIT_SECRET   = var.audit_secret
-    SESSION_SECRET = var.session_secret
+    MONGODB_URI         = local.mongodb_uri
+    VOYAGE_API_KEY      = var.voyage_api_key
+    LLM_GATEWAY_API_KEY = var.llm_gateway_api_key
+    AUDIT_SECRET        = var.audit_secret
+    SESSION_SECRET      = var.session_secret
   }
 }

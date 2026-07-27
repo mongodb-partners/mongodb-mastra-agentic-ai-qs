@@ -40,14 +40,14 @@ mongodb_db     = "marshal"             # the app reads MONGODB_DB (NOT MONGODB_D
 voyage_base_url = "https://ai.mongodb.com/v1"
 
 # Demo mode (default) replays the committed recording — no LLM at runtime, safe for hundreds
-# of concurrent viewers. Set "0" for a LIVE-agent box (then set the LLM vars + TF_VAR_grove_api_key).
+# of concurrent viewers. Set "0" for a LIVE-agent box (then set the LLM vars + TF_VAR_llm_gateway_api_key).
 demo_mode        = "1"
 seed_scale_count = "1200"              # synthetic decided-precedent corpus (the scale story)
 
 # LLM (only used in live mode; demo mode never calls it). Default path is the Anthropic gateway.
 llm_provider = "anthropic"
 llm_model    = "claude-haiku-4-5"
-# llm_base_url = "https://<your-gateway>/anthropic/v1/messages"   # set + TF_VAR_grove_api_key for live mode
+# llm_base_url = "https://<your-gateway>/anthropic/v1/messages"   # set + TF_VAR_llm_gateway_api_key for live mode
 #
 # For Bedrock instead of the gateway, set llm_provider = "bedrock" and llm_model to a Bedrock
 # model id (e.g. "us.anthropic.claude-haiku-4-5-20251001-v1:0"). That grants the instance role

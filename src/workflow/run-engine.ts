@@ -6,6 +6,7 @@ import { reviewAction } from '../governance/reviewer';
 import { buildPolicyJudge } from '../governance/judge';
 import { runCaseInvestigation } from './investigate';
 import { evidenceHash, type EvidenceSnapshot } from './evidence';
+import { formatMoney, moneyToNumber } from '../money';
 import { triage, reconcile } from '../decision/core';
 import { getQueryEmbedder } from '../mastra/embed';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
@@ -88,7 +89,10 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
     try {
       const caps = new Set<Capability>();
       const facts0 = { transaction_id: id, amount: t.amount, sender_account: t.sender.account_number, lane: t.lane, sanctions_hit: t.lane === 'sanctions', ring_suspicious: false };
-      await emit(db, { run_id, transaction_id: id, step: 'triage', headline: `Investigating ${id}`, detail: `$${t.amount.toLocaleString()} · ${t.lane}` });
+      // formatMoney, not t.amount.toLocaleString(): Decimal128 HAS a toLocaleString, and it
+      // returns a bare "4950.00" with no thousands separator — so this reads as a formatting
+      // regression in the demo's first visible line rather than as an error.
+      await emit(db, { run_id, transaction_id: id, step: 'triage', headline: `Investigating ${id}`, detail: `$${formatMoney(t.amount)} · ${t.lane}` });
 
       // HARD-COMPLIANCE GATE, BEFORE any LLM. A sanctions/watchlist hit is a deterministic reject —
       // the agent and policy judge are never consulted (no tokens, no chance of an LLM overriding a
@@ -159,7 +163,7 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
       const decision = triage(facts) ?? reconcile(facts, verdict);
       const now = new Date().toISOString();
       const snapshot: EvidenceSnapshot = {
-        transaction_id: id, proposed_disposition: decision.disposition, amount: t.amount,
+        transaction_id: id, proposed_disposition: decision.disposition, amount: moneyToNumber(t.amount),
         risk_factors: decision.risk_factors, compliance_score: gov.compliance_score,
       };
       const out = await runCaseInvestigation(db, cfg.auditSecret, facts, verdict, gov.compliance_score, gov.held, now);

@@ -1,10 +1,11 @@
 import type { Lane } from '../mastra/schemas/transactions';
+import { moneyAtLeast, moneyAtMost, type MoneyLike } from '../money';
 
 export type Disposition = 'approve' | 'reject' | 'escalate';
 
 export interface TxnFacts {
   transaction_id: string;
-  amount: number;
+  amount: MoneyLike;
   lane?: Lane;
   sender_account: string;
   sanctions_hit?: boolean;   // set by a screening step (Plan 4 wires the real check)
@@ -28,10 +29,22 @@ export interface DecisionResult {
   must_escalate: boolean;
 }
 
-/** Structuring band: a deposit deliberately just under the $5,000 CTR reporting threshold. */
-export function isStructuringAmount(amount: number): boolean {
-  return amount >= 4900 && amount <= 4999;
+/**
+ * Structuring band: a deposit deliberately just under the $5,000 CTR reporting threshold.
+ *
+ * Takes MoneyLike and compares through the money helpers so the same rule accepts a Decimal128
+ * from the DB, a number from a fixture, and a string from an API payload. (A bare `amount >= 4900`
+ * on a Decimal128 does give the right answer — the operator stringifies and the comparison then
+ * coerces numerically — so this is a readability and input-tolerance choice, not a bug fix.) The
+ * band lives here rather than at the five call sites because a missed call site is invisible.
+ */
+export function isStructuringAmount(amount: MoneyLike): boolean {
+  return moneyAtLeast(amount, STRUCTURING_FLOOR) && moneyAtMost(amount, STRUCTURING_CEILING);
 }
+
+/** Inclusive bounds of the structuring band. Named so the band is greppable and testable. */
+export const STRUCTURING_FLOOR = 4900;
+export const STRUCTURING_CEILING = 4999;
 
 export const HIGH_VALUE_THRESHOLD = 50000;
 export const LOW_CONFIDENCE_CEILING = 85; // at/below this, a clear-cut auto-decision is not allowed
@@ -69,7 +82,7 @@ export function triage(facts: TxnFacts): DecisionResult | null {
 export function reconcile(facts: TxnFacts, verdict: AgentVerdict): DecisionResult {
   const reasons: string[] = [];
   if (isStructuringAmount(facts.amount)) reasons.push('structuring_amount');
-  if (facts.amount >= HIGH_VALUE_THRESHOLD && verdict.recommendation === 'approve') reasons.push('high_value_approval');
+  if (moneyAtLeast(facts.amount, HIGH_VALUE_THRESHOLD) && verdict.recommendation === 'approve') reasons.push('high_value_approval');
   if (facts.ring_suspicious) reasons.push('fraud_ring_suspicious');
   if (verdict.confidence <= LOW_CONFIDENCE_CEILING) reasons.push('low_confidence');
   // A confident escalate matches no rule above, and the fall-through below only speaks

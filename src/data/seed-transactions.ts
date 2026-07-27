@@ -26,12 +26,29 @@ export async function countDecidedPrecedents(col: Collection<Transaction>): Prom
 }
 
 /**
+ * Above this many surplus documents, a shrink is treated as a mistake unless explicitly allowed.
+ * See the `allowShrink` discussion in `seedSyntheticCorpus`.
+ */
+export const SHRINK_GUARD_THRESHOLD = 1000;
+
+/**
  * Seed the synthetic decided-precedent corpus up to `count` documents. Idempotent and
  * incremental: only missing ids are embedded and inserted (re-provisioning is cheap), and
  * shrinking `count` removes the surplus. Returns how many were written and the final total.
+ *
+ * **The shrink path is guarded.** Both the app corpus and the benchmark corpus use the same
+ * `SYNTHETIC_ID_PREFIX`, so "surplus" is every `txn-syn-*` document outside the wanted `count` —
+ * regardless of which process wrote it. Running this against the 1M database at the old default of
+ * `SEED_SCALE_COUNT=1200` therefore computes ~998,800 surplus ids and deletes them, silently and
+ * successfully, in what reads as a routine re-provision. That is a ~1.4 h re-seed to undo.
+ *
+ * A shrink of more than `SHRINK_GUARD_THRESHOLD` documents now throws instead, naming the count
+ * and how to proceed. Deliberate shrinks pass `allowShrink: true`. Small shrinks (the ordinary
+ * "I lowered SEED_SCALE_COUNT" case) are unaffected, so the guard costs nothing in normal use.
  */
 export async function seedSyntheticCorpus(
   col: Collection<Transaction>, embed: EmbedFn, count: number,
+  opts: { allowShrink?: boolean } = {},
 ): Promise<{ written: number; removed: number; total: number }> {
   const idFilter = { transaction_id: { $regex: `^${SYNTHETIC_ID_PREFIX}` } };
   const wanted = generateSyntheticCorpus(count);
@@ -42,6 +59,15 @@ export async function seedSyntheticCorpus(
   );
 
   const surplus = [...existing].filter(id => !wantedIds.has(id));
+  if (surplus.length > SHRINK_GUARD_THRESHOLD && !opts.allowShrink) {
+    throw new Error(
+      `refusing to delete ${surplus.length} synthetic transactions: SEED_SCALE_COUNT=${count} is ` +
+      `far below the ${existing.size} '${SYNTHETIC_ID_PREFIX}' documents already present. This is ` +
+      'the shape of a re-provision run against a large corpus with a small default — it would ' +
+      'destroy the corpus. Set SEED_SCALE_COUNT=0 to leave the corpus alone, or pass ' +
+      'allowShrink to shrink it on purpose.',
+    );
+  }
   if (surplus.length) await col.deleteMany({ transaction_id: { $in: surplus } } as any);
 
   const missing = wanted.filter(r => !existing.has(r.transaction_id));

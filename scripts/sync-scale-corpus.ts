@@ -56,8 +56,13 @@ async function main() {
     });
 
     const embedder = getQueryEmbedder(cfg);
+    // seedSyntheticCorpus refuses a large shrink by default, because the same call from the
+    // provision path against a big corpus with a small SEED_SCALE_COUNT would silently destroy it.
+    // This script IS the deliberate-resize tool and logs the delete count above, but a large
+    // shrink still needs saying out loud: ALLOW_SHRINK=1.
     const scale = await seedSyntheticCorpus(
       col as any, texts => embedder.embedDocuments(texts), cfg.seedScaleCount,
+      { allowShrink: process.env.ALLOW_SHRINK === '1' },
     );
     logger.info('scale corpus synced', scale);
     logger.info('totals', {

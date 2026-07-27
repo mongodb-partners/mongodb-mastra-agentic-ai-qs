@@ -26,7 +26,16 @@ function renderLockup() {
 }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const money = n => '$' + Number(n || 0).toLocaleString();
+// An amount arrives as a JSON number (pre-migration documents, and graph edges, which the server
+// already coerces) or as extended JSON from a BSON Decimal128: {"$numberDecimal":"4950.00"}.
+// Number() on that object is NaN, so every unguarded read renders "$NaN" and every arithmetic
+// read — the threshold gauge's width percentages — produces NaN% and a blank widget.
+const moneyValue = v => {
+  if (v && typeof v === 'object' && '$numberDecimal' in v) return Number(v.$numberDecimal);
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const money = n => '$' + moneyValue(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 let DEMO_MODE = false;
 
@@ -386,7 +395,8 @@ function endRun() {
 
 // ---- evidence rendering (shared: theater terminal + case detail) ---------------
 const CTR_THRESHOLD = 5000;
-function thresholdGauge(amount) {
+function thresholdGauge(rawAmount) {
+  const amount = moneyValue(rawAmount);
   const max = CTR_THRESHOLD * 1.12;
   const pct = Math.min(100, (amount / max) * 100);
   const limitPct = (CTR_THRESHOLD / max) * 100;
@@ -414,7 +424,7 @@ function ringSvg(ring, seed) {
     paths.push(dpath);
     // amount label at the curve midpoint (t=0.5 of the quadratic)
     const mx = 0.25 * p.x + 0.5 * cx + 0.25 * q.x, my = 0.25 * p.y + 0.5 * cy + 0.25 * q.y;
-    const amt = e.amount ? `<text class="edge-amt" x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}">$${Number(e.amount).toLocaleString()}</text>` : '';
+    const amt = e.amount ? `<text class="edge-amt" x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}">${money(e.amount)}</text>` : '';
     return `<path class="edge" style="animation-delay:${(i * 0.25).toFixed(2)}s" d="${dpath}"/>${amt}`;
   }).join('');
   const nodeEls = nodes.map(n => {
@@ -591,6 +601,27 @@ async function loadCaps() {
 
 // ---- bottom bar: real cluster stats + the eval scorecard -----------------------
 const fmtMs = ms => ms == null ? null : (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms');
+
+/**
+ * Per-stage latency breakdown for the p50 chip's tooltip: `retrieve p50 41ms (7.6%, n=180)`.
+ *
+ * Every figure carries its sample size, and p95/p99 only appear when the server published them —
+ * it returns null below n=100, because at small n a "p99" is just the maximum. Sorted by share so
+ * the stage that actually dominates the case time reads first.
+ */
+function stageTooltip(s) {
+  const stages = s.stages;
+  if (!stages) return 'median wall-clock per investigated case';
+  const share = s.stage_share || {};
+  const lines = Object.entries(stages)
+    .sort((a, b) => (share[b[0]] ?? 0) - (share[a[0]] ?? 0))
+    .map(([name, p]) => {
+      const pct = share[name] != null ? `${(share[name] * 100).toFixed(1)}%` : '—';
+      const tail = p.p95 != null ? `, p95 ${fmtMs(p.p95)}, p99 ${fmtMs(p.p99)}` : '';
+      return `${name} p50 ${fmtMs(p.p50)} (${pct}, n=${p.n}${tail})`;
+    });
+  return ['median wall-clock per investigated case', ...lines].join('\n');
+}
 async function loadStats() {
   const s = await fetch('/api/stats').then(r => r.ok ? r.json() : null).catch(() => null);
   if (!s) return;
@@ -604,7 +635,14 @@ async function loadStats() {
     bits.push(`<span>audit <b>${(s.counts.audit_events ?? 0).toLocaleString()}</b></span>`);
   }
   const p50 = fmtMs(s.latency_p50_ms);
-  if (p50) bits.push(`<span>p50 <b>${p50}</b>/case</span>`);
+  // The per-stage breakdown goes in the TITLE, not in a span. #stats already claims 691px of a
+  // shared row (see the fitCounters note below) and there is no width for five more chips. It also
+  // belongs on the hover rather than the bar for an honesty reason: a case is mostly LLM time, so
+  // the case p50 on its face invites being read as a database number. The tooltip is where the
+  // share and the sample size can travel with it.
+  // Escaped: stage names come from recorded step names, so they reach an HTML attribute. Newlines
+  // survive as-is inside a quoted attribute value and render as separate tooltip lines.
+  if (p50) bits.push(`<span title="${esc(stageTooltip(s))}">p50 <b>${p50}</b>/case</span>`);
   if (s.scorecard) {
     bits.push(`<span>fraud recall <b class="${s.scorecard.fraudRecall >= 0.95 ? 'good' : ''}">${Math.round(s.scorecard.fraudRecall * 100)}%</b></span>`);
     bits.push(`<span>F1 <b>${s.scorecard.f1Macro.toFixed(2)}</b></span>`);

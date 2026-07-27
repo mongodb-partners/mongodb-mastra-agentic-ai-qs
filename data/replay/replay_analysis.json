@@ -5,7 +5,7 @@
     },
     "transaction_id": "txn-review-high",
     "amount": {
-      "$numberInt": "75000"
+      "$numberDecimal": "75000.00"
     },
     "lane": "high_value",
     "sender": {
@@ -22,7 +22,7 @@
         "transaction_id": "txn-high-01",
         "text": "High-value wire of 120000 USD from Northwind Foods to Pacific Logistics for a bulk supplier shipment. Established counterparty, approved after review.",
         "amount": {
-          "$numberInt": "120000"
+          "$numberDecimal": "120000.00"
         },
         "currency": "USD",
         "sender": {
@@ -43,7 +43,7 @@
         "transaction_id": "txn-syn-11600",
         "text": "High-value wire of 142,994 USD from Ironvale Logistics to Northwind Foods for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
         "amount": {
-          "$numberInt": "142994"
+          "$numberDecimal": "142994.00"
         },
         "currency": "USD",
         "sender": {
@@ -64,7 +64,7 @@
         "transaction_id": "txn-syn-09687",
         "text": "High-value wire of 137,754 USD from Northwind Foods to Northwind Foods for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
         "amount": {
-          "$numberInt": "137754"
+          "$numberDecimal": "137754.00"
         },
         "currency": "USD",
         "sender": {
@@ -85,7 +85,7 @@
         "transaction_id": "txn-syn-10140",
         "text": "High-value wire of 206,388 USD from Peregrine Freight to Northwind Foods for a bulk commodity purchase. Above the enhanced-due-diligence threshold; documentation reviewed.",
         "amount": {
-          "$numberInt": "206388"
+          "$numberDecimal": "206388.00"
         },
         "currency": "USD",
         "sender": {
@@ -262,7 +262,7 @@
     },
     "transaction_id": "txn-review-sanctions",
     "amount": {
-      "$numberInt": "18000"
+      "$numberDecimal": "18000.00"
     },
     "lane": "sanctions",
     "sender": {
@@ -323,7 +323,7 @@
     },
     "transaction_id": "txn-review-struct",
     "amount": {
-      "$numberInt": "4950"
+      "$numberDecimal": "4950.00"
     },
     "lane": "structuring",
     "sender": {
@@ -340,7 +340,7 @@
         "transaction_id": "txn-struct-01",
         "text": "Cash deposit of 4950 USD, just under the 5000 reporting threshold. Third sub-threshold deposit this week from the same account.",
         "amount": {
-          "$numberInt": "4950"
+          "$numberDecimal": "4950.00"
         },
         "currency": "USD",
         "sender": {
@@ -361,7 +361,7 @@
         "transaction_id": "txn-struct-02",
         "text": "Cash deposit of 4900 USD just below the 5000 CTR threshold, same account, following a similar deposit yesterday.",
         "amount": {
-          "$numberInt": "4900"
+          "$numberDecimal": "4900.00"
         },
         "currency": "USD",
         "sender": {
@@ -382,7 +382,7 @@
         "transaction_id": "txn-syn-00016",
         "text": "Cash deposit of 4,970 USD just under the 5000 USD reporting threshold at Peregrine Freight; deposit 3 in a repeated sub-threshold pattern this week. Flagged as structuring.",
         "amount": {
-          "$numberInt": "4970"
+          "$numberDecimal": "4970.00"
         },
         "currency": "USD",
         "sender": {
@@ -403,7 +403,7 @@
         "transaction_id": "txn-syn-00024",
         "text": "Cash deposit of 4,998 USD just under the 5000 USD reporting threshold at Foundry Metalworks; deposit 5 in a repeated sub-threshold pattern this week. Flagged as structuring.",
         "amount": {
-          "$numberInt": "4998"
+          "$numberDecimal": "4998.00"
         },
         "currency": "USD",
         "sender": {
@@ -448,21 +448,21 @@
           "from": "ACC-3001",
           "to": "ACC-3001",
           "amount": {
-            "$numberInt": "4950"
+            "$numberDecimal": "4950.00"
           }
         },
         {
           "from": "ACC-3001",
           "to": "ACC-3001",
           "amount": {
-            "$numberInt": "4900"
+            "$numberDecimal": "4900.00"
           }
         },
         {
           "from": "ACC-3001",
           "to": "ACC-3001",
           "amount": {
-            "$numberInt": "4950"
+            "$numberDecimal": "4950.00"
           }
         }
       ]
@@ -622,7 +622,7 @@
     },
     "transaction_id": "txn-review-clean",
     "amount": {
-      "$numberInt": "3200"
+      "$numberDecimal": "3200.00"
     },
     "lane": "clean_approve",
     "sender": {
@@ -639,7 +639,7 @@
         "transaction_id": "txn-clean-01",
         "text": "Recurring payroll credit of 3200 USD from Northwind Foods to a long-tenured employee account. Consistent monthly pattern, no anomalies.",
         "amount": {
-          "$numberInt": "3200"
+          "$numberDecimal": "3200.00"
         },
         "currency": "USD",
         "sender": {
@@ -660,7 +660,7 @@
         "transaction_id": "txn-syn-07456",
         "text": "Recurring payroll credit of 7,061 USD from Northwind Foods to A. Lindqvist. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "7061"
+          "$numberDecimal": "7061.00"
         },
         "currency": "USD",
         "sender": {
@@ -681,7 +681,7 @@
         "transaction_id": "txn-syn-00750",
         "text": "Recurring payroll credit of 7,336 USD from Northwind Foods to W. Calloway. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "7336"
+          "$numberDecimal": "7336.00"
         },
         "currency": "USD",
         "sender": {
@@ -702,7 +702,7 @@
         "transaction_id": "txn-syn-02083",
         "text": "Recurring payroll credit of 1,114 USD from Northwind Foods to C. Beaumont. Established relationship, consistent with prior activity, no anomalies.",
         "amount": {
-          "$numberInt": "1114"
+          "$numberDecimal": "1114.00"
         },
         "currency": "USD",
         "sender": {
@@ -869,7 +869,7 @@
     },
     "transaction_id": "txn-review-reject",
     "amount": {
-      "$numberInt": "1980"
+      "$numberDecimal": "1980.00"
     },
     "lane": "clear_reject",
     "sender": {
@@ -886,7 +886,7 @@
         "transaction_id": "txn-reject-01",
         "text": "Card-not-present charge of 2100 USD to an unrecognized merchant minutes after a foreign login. Confirmed account takeover, chargeback filed.",
         "amount": {
-          "$numberInt": "2100"
+          "$numberDecimal": "2100.00"
         },
         "currency": "USD",
         "sender": {
@@ -907,7 +907,7 @@
         "transaction_id": "txn-syn-00482",
         "text": "Transfer of 1,084 USD from A. Lindqvist to Stoneharbor Imports; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
         "amount": {
-          "$numberInt": "1084"
+          "$numberDecimal": "1084.00"
         },
         "currency": "USD",
         "sender": {
@@ -928,7 +928,7 @@
         "transaction_id": "txn-syn-00249",
         "text": "Transfer of 949 USD from R. Whitfield to Copperline Utilities; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
         "amount": {
-          "$numberInt": "949"
+          "$numberDecimal": "949.00"
         },
         "currency": "USD",
         "sender": {
@@ -949,7 +949,7 @@
         "transaction_id": "txn-syn-00003",
         "text": "Transfer of 189 USD from D. Kowalski to Foundry Metalworks; card-not-present purchase at an unrecognized overseas merchant, cardholder disputes the charge. Rejected as confirmed fraud.",
         "amount": {
-          "$numberInt": "189"
+          "$numberDecimal": "189.00"
         },
         "currency": "USD",
         "sender": {
@@ -1137,7 +1137,7 @@
     },
     "transaction_id": "txn-review-ring",
     "amount": {
-      "$numberInt": "900"
+      "$numberDecimal": "900.00"
     },
     "lane": "ring",
     "sender": {
@@ -1154,7 +1154,7 @@
         "transaction_id": "txn-ring-01",
         "text": "Transfer of 920 USD from Quartz Trading to Vertex Holdings, part of a rapid multi-hop chain across shell accounts.",
         "amount": {
-          "$numberInt": "920"
+          "$numberDecimal": "920.00"
         },
         "currency": "USD",
         "sender": {
@@ -1175,7 +1175,7 @@
         "transaction_id": "txn-ring-03",
         "text": "Transfer of 850 USD from Slate Partners back to Quartz Trading, closing a circular money-flow loop across the network.",
         "amount": {
-          "$numberInt": "850"
+          "$numberDecimal": "850.00"
         },
         "currency": "USD",
         "sender": {
@@ -1196,7 +1196,7 @@
         "transaction_id": "txn-syn-06916",
         "text": "Transfer of 903 USD from Vantage Retail Group to Quanta Fabrication, one hop in a rapid multi-account chain that returns funds near their origin. Consistent with mule-ring layering.",
         "amount": {
-          "$numberInt": "903"
+          "$numberDecimal": "903.00"
         },
         "currency": "USD",
         "sender": {
@@ -1217,7 +1217,7 @@
         "transaction_id": "txn-ring-02",
         "text": "Transfer of 880 USD from Vertex Holdings to Slate Partners, continuing the layering chain with small sub-threshold amounts.",
         "amount": {
-          "$numberInt": "880"
+          "$numberDecimal": "880.00"
         },
         "currency": "USD",
         "sender": {
@@ -1262,28 +1262,28 @@
           "from": "ACC-RING-B",
           "to": "ACC-RING-C",
           "amount": {
-            "$numberInt": "880"
+            "$numberDecimal": "880.00"
           }
         },
         {
           "from": "ACC-RING-A",
           "to": "ACC-RING-B",
           "amount": {
-            "$numberInt": "920"
+            "$numberDecimal": "920.00"
           }
         },
         {
           "from": "ACC-RING-C",
           "to": "ACC-RING-A",
           "amount": {
-            "$numberInt": "850"
+            "$numberDecimal": "850.00"
           }
         },
         {
           "from": "ACC-RING-A",
           "to": "ACC-RING-B",
           "amount": {
-            "$numberInt": "900"
+            "$numberDecimal": "900.00"
           }
         }
       ]

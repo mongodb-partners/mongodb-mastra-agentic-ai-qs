@@ -18,6 +18,15 @@ export interface StatsSnapshot {
   scorecard: Scorecard | null;
   /** Median wall-clock per investigated case, from the recorded agent_events span. */
   latency_p50_ms: number | null;
+  /**
+   * Per-stage latency percentiles, each carrying its own `n`. These are the numbers worth
+   * publishing: `retrieve` and `graph` are the Atlas-owned stages. There is deliberately NO
+   * case-level p99 — a case is dominated by LLM time (reason + tool ≈ 75% measured), so its
+   * tail would be Bedrock variance wearing a MongoDB label.
+   */
+  stages: Record<string, StagePercentiles> | null;
+  /** Share of summed stage time per stage — the disclosure that keeps the above honest. */
+  stage_share: Record<string, number> | null;
   generated_at: string;
 }
 
@@ -108,6 +117,84 @@ export function caseSpansMs(events: SpanEvent[]): number[] {
   return spans;
 }
 
+/** Minimum sample size before a tail percentile is published at all. */
+export const MIN_TAIL_N = 100;
+
+export interface StagePercentiles { n: number; p50: number; p95: number | null; p99: number | null }
+
+/** Linear-interpolated percentile over an ASCENDING sample. Pure — the caller sorts. */
+export function percentile(sorted: number[], q: number): number {
+  if (sorted.length === 1) return sorted[0];
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+/**
+ * p50 always; p95/p99 only once the sample can actually support them.
+ *
+ * At n=10 a "p99" IS the maximum — one unlucky sample reported as a tail statistic. Returning
+ * null is the honest answer, and `n` travels with every number so a reader can check the claim
+ * instead of trusting it. (Measured on both tracks at n=6, p90 = p95 = p99 = max exactly.)
+ */
+export function buildStagePercentiles(durations: number[]): StagePercentiles | null {
+  if (!durations.length) return null;
+  const s = [...durations].sort((a, b) => a - b);
+  const tail = s.length >= MIN_TAIL_N;
+  return {
+    n: s.length,
+    p50: Number(percentile(s, 0.5).toFixed(1)),
+    p95: tail ? Number(percentile(s, 0.95).toFixed(1)) : null,
+    p99: tail ? Number(percentile(s, 0.99).toFixed(1)) : null,
+  };
+}
+
+/**
+ * Per-step durations in ms, grouped by step name.
+ *
+ * A step's duration is the gap to the next event of the SAME run, so this splits on run
+ * boundaries for exactly the reason `caseSpansMs` does: `agent_events` accumulates across runs,
+ * and a naive gap silently reports the idle time between two runs as a step duration. The last
+ * event of a run has no successor and therefore contributes no duration — better than
+ * fabricating one. Events must arrive in ascending `ts` order.
+ */
+export function stageDurationsMs(events: SpanEvent[]): Record<string, number[]> {
+  const byCase = new Map<string, SpanEvent[]>();
+  for (const e of events) {
+    if (!e?.transaction_id || !Number.isFinite(msOf(e.ts))) continue;
+    const list = byCase.get(e.transaction_id);
+    if (list) list.push(e); else byCase.set(e.transaction_id, [e]);
+  }
+  const out: Record<string, number[]> = {};
+  for (const list of byCase.values()) {
+    for (let i = 0; i < list.length - 1; i++) {
+      const cur = list[i];
+      const next = list[i + 1];
+      // A new run starts at `next`: the gap spans idle time, not work.
+      if (next.run_id !== cur.run_id || next.step === OPENING_STEP) continue;
+      const d = msOf(next.ts) - msOf(cur.ts);
+      if (!cur.step || !Number.isFinite(d) || d < 0) continue;
+      (out[cur.step] ??= []).push(d);
+    }
+  }
+  return out;
+}
+
+/**
+ * Each stage's share of summed stage time.
+ *
+ * This is the disclosure that keeps a published retrieval percentile honest: on Track B the
+ * measured split is reason 45.0%, tool 30.4%, govern 16.1%, retrieve 7.6%, graph 0.5% — so a
+ * case-level number is mostly LLM time, and quoting one as a database figure would be wrong.
+ */
+export function buildStageShare(durations: Record<string, number[]>): Record<string, number> | null {
+  const totals = Object.entries(durations).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0)] as const);
+  const grand = totals.reduce((s, [, v]) => s + v, 0);
+  if (!grand) return null;
+  return Object.fromEntries(totals.map(([k, v]) => [k, Number((v / grand).toFixed(4))]));
+}
+
 /** Which collections the scorecard/latency/audit counts come from (working vs. immutable replay). */
 export interface StatsSource { events: string; analysis: string; audit: string }
 const DEFAULT_SOURCE: StatsSource = { events: 'agent_events', analysis: 'case_analysis', audit: 'audit_trail' };
@@ -146,6 +233,13 @@ export async function gatherStats(db: Db, src: StatsSource = DEFAULT_SOURCE): Pr
     .toArray();
   const latency = medianCaseSpanMs(caseSpansMs(events as unknown as SpanEvent[]));
 
+  const stageDurations = stageDurationsMs(events as unknown as SpanEvent[]);
+  const stages = Object.fromEntries(
+    Object.entries(stageDurations)
+      .map(([k, v]) => [k, buildStagePercentiles(v)] as const)
+      .filter(([, v]) => v !== null),
+  ) as Record<string, StagePercentiles>;
+
   return {
     counts: {
       transactions, precedents, pending, policies,
@@ -153,6 +247,8 @@ export async function gatherStats(db: Db, src: StatsSource = DEFAULT_SOURCE): Pr
     },
     scorecard,
     latency_p50_ms: latency,
+    stages: Object.keys(stages).length ? stages : null,
+    stage_share: buildStageShare(stageDurations),
     generated_at: new Date().toISOString(),
   };
 }
