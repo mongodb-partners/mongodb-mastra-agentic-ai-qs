@@ -19,6 +19,7 @@
     "bake": "tsx scripts/bake-replay.ts",
     "export:replay": "tsx scripts/export-replay.ts",
     "restore:replay": "tsx scripts/restore-replay.ts",
+    "snapshot:replay": "tsx scripts/snapshot-replay.ts",
     "check:replay": "tsx scripts/check-replay.ts",
     "beat:policy": "tsx scripts/stage-beats.ts policy",
     "beat:tamper": "tsx scripts/stage-beats.ts tamper",
