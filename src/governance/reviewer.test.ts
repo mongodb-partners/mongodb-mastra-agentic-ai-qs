@@ -57,4 +57,24 @@ describe('reviewAction', () => {
     expect(r.compliance_score).toBe(1);
     expect(r.held).toBe(false);
   });
+
+  it('fails CLOSED when the judge is unavailable — holds instead of scoring clean', async () => {
+    // A judge that exhausted its retries knows nothing about this action. The dangerous outcome is
+    // treating that silence as compliance: score 1.0, held false, auto-commit, and an audit entry
+    // attesting to a review that never happened.
+    const judge: PolicyJudge = async () => { throw new Error('no valid verdict after 3 attempts'); };
+    const r = await reviewAction(fakeDb(retrieved) as any, embed, judge, 'approve a sanctioned wire');
+    expect(r.held).toBe(true);
+    expect(r.compliance_score).toBe(0);
+    expect(r.judge_unavailable).toBe(true);
+    // Still reports what was retrieved, so the held case shows the policies a human should weigh.
+    expect(r.retrieved).toHaveLength(2);
+  });
+
+  it('does not propagate the judge failure — the case must still reach the audit write', async () => {
+    // Rethrowing would abort the case in run-engine's per-case try/catch BEFORE governance is
+    // persisted, the audit event is appended and the review gate runs.
+    const judge: PolicyJudge = async () => { throw new Error('boom'); };
+    await expect(reviewAction(fakeDb(retrieved) as any, embed, judge, 'x')).resolves.toBeDefined();
+  });
 });

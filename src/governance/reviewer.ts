@@ -2,6 +2,7 @@ import type { Db } from 'mongodb';
 import { z } from 'zod';
 import { POLICIES_COLLECTION, POLICY_VECTOR_INDEX, type Severity } from './policies';
 import { evaluateGovernance, type GovernanceResult, type Violation } from './review';
+import { logger } from '../observability/logger';
 
 export type EmbedQuery = (text: string) => Promise<number[]>;
 
@@ -45,9 +46,30 @@ export async function retrieveRelevantPolicies(
  */
 export async function reviewAction(
   db: Db, embedQuery: EmbedQuery, judge: PolicyJudge, action: string,
-): Promise<GovernanceResult & { retrieved: RetrievedPolicy[] }> {
+): Promise<GovernanceResult & { retrieved: RetrievedPolicy[]; judge_unavailable?: true }> {
   const policies = await retrieveRelevantPolicies(db, embedQuery, action);
-  const out = await judge({ action, policies });
+  let out: ReviewerOutput;
+  try {
+    out = await judge({ action, policies });
+  } catch (err) {
+    // FAIL CLOSED. The judge exhausted its retries (see judgeWithRetry), so we do not know whether
+    // this action violates policy — and "unknown" must never be scored as "compliant". Hold the case
+    // for a human with a zero compliance score instead of letting the absence of a verdict read as a
+    // clean one. Deliberately NOT a rethrow: propagating here would abort the case before governance
+    // is persisted, the audit event is appended and the human-review gate runs, which is the same
+    // reasoning that makes an over-wide $graphLookup return an empty chain rather than throw.
+    logger.error('policy judge unavailable; holding the case for human review', {
+      action: action.slice(0, 120), err: String(err),
+    });
+    return {
+      compliance_score: 0,
+      violations: [],
+      dropped_citations: [],
+      held: true,
+      retrieved: policies,
+      judge_unavailable: true,
+    };
+  }
   // Use the AUTHORITATIVE stored severity from the retrieved policy, not the LLM-reported one
   // (review finding #4): the judge only identifies WHICH policy is violated; the penalty weight
   // comes from the policy record, so a model misclassifying a critical rule as "low" can't
