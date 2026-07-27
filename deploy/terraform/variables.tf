@@ -244,7 +244,14 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  description = "Optional explicit AMI id. Empty ⇒ resolve the latest Amazon Linux 2023 x86_64 via ec2:DescribeImages."
+  description = <<-DESC
+    Optional explicit AMI id. Empty ⇒ resolve the latest Amazon Linux 2023 x86_64 via
+    ec2:DescribeImages, which is right for a first deploy and worth pinning for anything
+    long-lived: `ami` forces replacement, so once Amazon republishes AL2023 the data source
+    resolves a new id and the next plan proposes destroying the running instance — in a plan
+    you may have run to change something else entirely. Pin it to what the box is actually
+    running (`terraform output`, or the console) after the first apply.
+  DESC
   type        = string
   default     = ""
 }

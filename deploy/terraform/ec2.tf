@@ -72,7 +72,15 @@ resource "aws_instance" "app" {
     ssm_path_prefix = local.ssm_prefix
     aws_region      = var.aws_region
   })
-  # Re-provision cleanly if the bootstrap script changes.
+  # Re-provision cleanly if the bootstrap script changes. Read this as what it is: any edit to
+  # userdata.sh.tftpl — or to app_repo_ref, ssm_path_prefix or aws_region, which are interpolated
+  # into it — DESTROYS AND RECREATES this instance. That is correct for a first stand-up and wrong
+  # once a box is serving: on-box state that terraform does not manage (the checked-out working
+  # tree, TLS material issued to this host, anything written since boot) does not survive.
+  #
+  # So terraform is the tool for CREATING the stack, not for updating a running one. To change the
+  # app on a live box, deploy to it (see deploy/README.md); to change the bootstrap for future
+  # boxes, expect this line to do exactly what it says.
   user_data_replace_on_change = true
 
   # Depend on the network + role being ready. Peering readiness is handled by the wrapper's
