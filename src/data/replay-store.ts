@@ -102,11 +102,18 @@ export interface ReplayMeta extends ReplayProvenance {
   /** Documents in `transactions` on the cluster the recording was produced against. */
   corpus_size: number;
   /**
-   * Decided (non-pending) documents in that same corpus.
+   * Decided (non-pending) documents in that same corpus, as of the moment the run STARTED.
    *
    * Recorded alongside `corpus_size` because the two are displayed side by side in the status bar.
    * Carrying one without the other renders "corpus 1,000,015 · precedents 12,009" — two numbers
    * from two different clusters, presented as one reading.
+   *
+   * "As of the moment the run started" is the load-bearing part, and it is not what a naive count
+   * gives you — see `snapshotReplay`. A replay depicts a queue of undecided cases being worked, so
+   * the precedent count it publishes has to be the one that was true while they were still
+   * undecided. `status` partitions exactly into `pending` + DECIDED_STATUSES, so a reader can and
+   * will check the arithmetic: `corpus_size - decided_precedents` must equal the number of cases the
+   * recording covers.
    */
   decided_precedents: number;
   /** Database the run was recorded on — the provenance a reader needs to check the claim. */
@@ -138,11 +145,38 @@ export async function snapshotReplay(
   // the recorded scale is knowable. `countDocuments` rather than `estimatedDocumentCount` because
   // this runs once per bake and the number is about to be published as a claim.
   const tx = db.collection(TRANSACTIONS_COLLECTION);
+
+  // The cases this recording covers. Excluded from the decided tally below, because this function
+  // runs AFTER the run it is freezing: by now the pipeline has written each case's disposition back
+  // to `transactions.status`, so a bare decided-count measures the cluster the run LEFT BEHIND while
+  // publishing it as the corpus the run was performed AGAINST.
+  //
+  // Measured cost of getting this wrong: the 2026-07-27 artifact recorded 1,000,012 decided out of
+  // 1,000,015 for a 6-case recording. Three of the six had committed their verdicts and three were
+  // still held at the human gate, so the counter saw 3 pending instead of 6 and the status bar
+  // published a corpus that was three documents short of accounting for its own queue. `status`
+  // partitions exactly into `pending` + DECIDED_STATUSES (see TransactionSchema), so the missing
+  // documents were not hiding in a third state — the number was simply off by the cases that had
+  // finished first.
+  //
+  // `$nin` on the recorded ids rather than resetting the queue and re-counting: this is derived from
+  // the recording itself, so it is right for any recording of any size and does not depend on an
+  // operator sequencing a reset before the snapshot — which is precisely the step that failed.
+  const recordedIds = (await db.collection(REPLAY_COLLECTIONS.case_analysis)
+    .find({}, { projection: { _id: 0, transaction_id: 1 } })
+    .toArray())
+    .map(d => (d as { transaction_id?: unknown }).transaction_id)
+    .filter((id): id is string => typeof id === 'string' && id !== '');
+
   const meta: ReplayMeta = {
     corpus_size: await tx.countDocuments({}),
     // Same predicate `gatherStats` uses for the live number, so the recorded and live figures are
-    // the same measurement — not two definitions of "decided" that happen to be close.
-    decided_precedents: await tx.countDocuments({ status: { $in: [...DECIDED_STATUSES] } }),
+    // the same measurement — not two definitions of "decided" that happen to be close. The `$nin` is
+    // the one deliberate difference, and it is what makes this the count as-of the run's start.
+    decided_precedents: await tx.countDocuments({
+      status: { $in: [...DECIDED_STATUSES] },
+      ...(recordedIds.length ? { transaction_id: { $nin: recordedIds } } : {}),
+    }),
     source_db: db.databaseName,
     recorded_at: new Date(),
     // Passed in rather than discovered here: the commit comes from git and the tier from the Atlas

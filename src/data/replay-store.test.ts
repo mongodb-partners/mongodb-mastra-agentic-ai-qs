@@ -18,14 +18,20 @@ function memDb(seed: Record<string, any[]>, dbName = 'marshal_1m') {
     collection(name: string) {
       return {
         find: () => ({ toArray: async () => [...at(name)] }),
+        async countDocuments(filter: any = {}) {
+          const want = filter?.status?.$in as string[] | undefined;
+          // `$nin` on transaction_id is how snapshotReplay excludes the cases the recording covers,
+          // so the stand-in has to honour it — otherwise the test that pins the count passes for the
+          // wrong reason.
+          const excluded = filter?.transaction_id?.$nin as string[] | undefined;
+          return at(name).filter(d =>
+            (!want || want.includes(d.status)) &&
+            (!excluded || !excluded.includes(d.transaction_id))).length;
+        },
         async findOne(_f: any, _o: any) { return at(name)[0] ?? null; },
         async deleteMany() { store[name] = []; },
         async insertMany(docs: any[]) { at(name).push(...docs); },
         async insertOne(doc: any) { at(name).push(doc); },
-        async countDocuments(filter: any = {}) {
-          const want = filter?.status?.$in as string[] | undefined;
-          return want ? at(name).filter(d => want.includes(d.status)).length : at(name).length;
-        },
       } as any;
     },
   } as any;
@@ -76,6 +82,65 @@ describe('snapshotReplay — the recording carries its own scale', () => {
     // two different measurements presented as one number.
     const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus });
     await snapshotReplay(db, PROV);
+    expect((await readReplayMeta(db))!.decided_precedents).toBe(3);
+  });
+
+  it('excludes the recorded cases from the decided tally, however they ended', async () => {
+    // THE REGRESSION. snapshotReplay runs after the run it freezes, so the pipeline has already
+    // written dispositions back to `transactions.status`. Here 'a' and 'b' are cases the recording
+    // covers and they have committed (approved/rejected), while 'c' is a third decided document that
+    // has nothing to do with the run.
+    //
+    // A bare decided-count returns 3 and describes the cluster the run LEFT. The corpus the run was
+    // performed against had only 'c' decided, because 'a' and 'b' were pending when it started.
+    // Shipped, this published 1,000,012 of 1,000,015 for a 6-case recording — a corpus three
+    // documents short of accounting for its own queue.
+    const db = memDb({
+      [TRANSACTIONS_COLLECTION]: [
+        { transaction_id: 'a', status: 'approved' },
+        { transaction_id: 'b', status: 'rejected' },
+        { transaction_id: 'c', status: 'approved' },
+      ],
+      case_analysis: [{ transaction_id: 'a' }, { transaction_id: 'b' }],
+    });
+
+    await snapshotReplay(db, PROV);
+
+    const meta = (await readReplayMeta(db))!;
+    expect(meta.decided_precedents).toBe(1);
+    // The subtraction a viewer does in front of the status bar. It resolves to the recorded case
+    // count here, and on the shipped corpus, because the only undecided documents in either are the
+    // cases the recording covers. A corpus that also held unrelated pending documents would leave a
+    // larger remainder — still correct, just not equal to the case count. What this pins is that the
+    // recorded cases are counted as undecided, which is the state the replay actually depicts.
+    expect(meta.corpus_size - meta.decided_precedents).toBe(2);
+  });
+
+  it('reads the recorded ids from the replay copy, so it does not depend on bake ordering', async () => {
+    // The ids come from `replay_analysis` — written by the loop above, in this same call — rather
+    // than from the working `case_analysis`. That matters because a live reset clears the working
+    // collections but never the replay copies, so this stays correct on a re-snapshot of an artifact
+    // whose source run has since been cleared.
+    const db = memDb({
+      [TRANSACTIONS_COLLECTION]: [
+        { transaction_id: 'a', status: 'escalated' }, { transaction_id: 'b', status: 'approved' },
+      ],
+      case_analysis: [{ transaction_id: 'a' }],
+    });
+
+    await snapshotReplay(db, PROV);
+
+    expect(db.store[REPLAY_COLLECTIONS.case_analysis]).toHaveLength(1);
+    expect((await readReplayMeta(db))!.decided_precedents).toBe(1);
+  });
+
+  it('falls back to the plain decided count when the recording covers no cases', async () => {
+    // An empty `$nin` matches nothing in MongoDB, so building the filter unconditionally would return
+    // 0 decided for an empty recording and silently claim the whole corpus was undecided.
+    const db = memDb({ [TRANSACTIONS_COLLECTION]: corpus, case_analysis: [] });
+
+    await snapshotReplay(db, PROV);
+
     expect((await readReplayMeta(db))!.decided_precedents).toBe(3);
   });
 

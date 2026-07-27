@@ -252,7 +252,13 @@ describe('gatherStats — recorded vs live corpus counts', () => {
     expect(s.counts.transactions).toBe(1_000_015);
     expect(s.counts.precedents).toBe(1_000_009);
     // Only the corpus figures come from the recording — `pending` is still a live count, because a
-    // replay's queue is served from this cluster.
+    // replay's queue is served from this cluster and its six cases are really pending there. Making
+    // it recorded too would reconcile the JSON at the cost of contradicting the queue a visitor can
+    // click, which is the worse of the two.
+    //
+    // The fixture above pairs 1,000,015 with 1,000,009, i.e. six undecided — the correct relationship
+    // for a 6-case recording. The shipped artifact carried 1,000,012 for a while; this file had the
+    // right numbers and nothing compared it to the artifact. `replay-fixtures.test.ts` now does.
     expect(s.counts.pending).toBe(7);
   });
 

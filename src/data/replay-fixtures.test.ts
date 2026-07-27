@@ -128,3 +128,35 @@ describe('replay_events fixture', () => {
     expect(byId['txn-review-ring']).toBe('$900.00 · ring');
   });
 });
+
+describe('replay_meta fixture', () => {
+  const meta = load('replay_meta')[0];
+  const cases = new Set(load('replay_analysis').map(d => d.transaction_id));
+
+  // THE ASSERTION WHOSE ABSENCE LET A WRONG NUMBER SHIP. The artifact went out carrying
+  // corpus_size 1,000,015 and decided_precedents 1,000,012 for a recording of 6 cases — three
+  // documents short of accounting for its own queue. Demo mode publishes both straight to the status
+  // bar as "corpus … · precedents …", so the discrepancy was on screen at a public demo, and the only
+  // way to notice was to subtract two seven-digit numbers that differ in the last three places.
+  //
+  // Root cause was in snapshotReplay, fixed there (it counted the cluster AFTER the run committed
+  // dispositions). This checks the shipped artifact, because that is the thing visitors see: a future
+  // bake from a mis-sequenced cluster, or a hand-edited meta doc, lands here.
+  it('reconciles its own counts against the cases it covers', () => {
+    expect(cases.size).toBe(6);
+    // `status` partitions exactly into `pending` + DECIDED_STATUSES (TransactionSchema), so the
+    // undecided remainder is fully determined — there is no third state for documents to hide in.
+    expect(meta.corpus_size - meta.decided_precedents).toBe(cases.size);
+  });
+
+  it('carries the provenance a published latency claim needs', () => {
+    // Demo mode publishes the recording's timings as latency_p50_ms and the per-stage tail. Those are
+    // performance claims, and 'unknown' in any of these makes one uncheckable.
+    for (const f of ['app_commit', 'atlas_tier', 'llm_model', 'source_db'] as const) {
+      expect(typeof meta[f], f).toBe('string');
+      expect(meta[f], f).not.toBe('unknown');
+      expect(String(meta[f]).length, f).toBeGreaterThan(0);
+    }
+    expect(meta.recorded_at).toBeInstanceOf(Date);
+  });
+});
