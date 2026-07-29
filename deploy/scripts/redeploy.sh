@@ -6,6 +6,10 @@
 #
 #   deploy/scripts/redeploy.sh [user@host] [git-ref]
 #   deploy/scripts/redeploy.sh ec2-user@1.2.3.4 main      # ref defaults to main
+#
+# Assumes the deploy.sh layout: checkout at /opt/app/src, .env seeded at /opt/app/.env, and a DB
+# user that can write. A box laid out differently (or running a read-only DB user, which makes
+# `pnpm provision` fail on createIndexes) needs the steps run by hand.
 set -euo pipefail
 
 HOST="${1:?usage: redeploy.sh user@host [git-ref]}"
@@ -25,6 +29,19 @@ echo "${C_B}=== redeploy ${REF} → ${HOST} ===${C_0}"
 command -v ssh >/dev/null || die "ssh not found"
 rsh 'command -v docker >/dev/null' || die "docker not found on $HOST"
 
+# 0. Discover the box's compose layering. A TLS box keeps its override OUTSIDE this repo (the
+#    checkout is frozen and kept git-clean), so the file list is a property of the HOST, not of
+#    the source tree. Omitting it recreates nginx without :443 and the box silently drops to
+#    plain HTTP — see /opt/app/src/READ-ME-BEFORE-COMPOSE.txt on the box.
+TLS_OVERRIDE="/opt/marshal-tls/compose.tls.yml"
+COMPOSE_FILES="-f docker-compose.yml -f deploy/compose.nginx.yml"
+HAS_TLS=0
+if rsh "test -f '$TLS_OVERRIDE'"; then
+  COMPOSE_FILES="$COMPOSE_FILES -f $TLS_OVERRIDE"
+  HAS_TLS=1
+  ok "TLS override found — layering $TLS_OVERRIDE (keeps :443 up)"
+fi
+
 # 1. Pull new code — fetch FIRST so reset lands on the true remote tip, not a stale cached ref.
 log "fetching + resetting $APP_DIR to origin/$REF"
 LANDED=$(rsh "cd '$APP_DIR' \
@@ -39,7 +56,7 @@ ok "landed: $LANDED"
 log "rebuilding + restarting containers (this can take a few minutes)"
 rsh "cd '$APP_DIR' \
   && sudo cp /opt/app/.env src/.env 2>/dev/null || true; \
-  sudo docker compose -f docker-compose.yml -f deploy/compose.nginx.yml up -d --build" \
+  sudo docker compose $COMPOSE_FILES up -d --build" \
   || die "docker compose build/up failed on $HOST"
 ok "containers rebuilt"
 
@@ -53,14 +70,27 @@ else
   warn "  MONGODB_URI=... MONGODB_DB=... VOYAGE_API_KEY=... pnpm provision && pnpm restore:replay"
 fi
 
-# 4. Health.
+# 4. Health. :8000 is the app container direct — it proves the app booted but says NOTHING about
+#    the edge, because it bypasses nginx. On a TLS box that gap is the whole failure mode: nginx
+#    recreated without the override answers :80 fine and :443 not at all, so an app-only check
+#    reports a clean redeploy while the public URL is unreachable.
 log "health check"
 for i in $(seq 1 20); do
   if rsh 'curl -fsS localhost:8000/api/health >/dev/null 2>&1'; then ok "app healthy"; break; fi
-  [[ $i -eq 20 ]] && warn "health did not pass after ~2.5 min; check: ssh $HOST 'sudo docker compose -f $APP_DIR/docker-compose.yml -f $APP_DIR/deploy/compose.nginx.yml logs app'"
+  [[ $i -eq 20 ]] && warn "health did not pass after ~2.5 min; check: ssh $HOST 'sudo docker compose $COMPOSE_FILES logs app' (from $APP_DIR)"
   sleep 8
 done
 
+if [[ $HAS_TLS -eq 1 ]]; then
+  log "edge check (through nginx, since :8000 cannot see a missing :443)"
+  if rsh 'curl -fsS -k -o /dev/null -w "%{http_code}" https://localhost/api/health 2>/dev/null | grep -q 200'; then
+    ok "TLS edge serving on :443"
+  else
+    die "app is up but :443 is NOT serving — nginx likely lost the TLS override. Recover with:
+     ssh $HOST 'sudo /opt/marshal-tls/compose.sh up -d'"
+  fi
+fi
+
 echo ""
 ok "Redeploy done — $LANDED"
-echo "   Open: http://${HOST#*@}/?tour=0"
+echo "   Open: $([[ $HAS_TLS -eq 1 ]] && echo https || echo http)://${HOST#*@}/?tour=0"
