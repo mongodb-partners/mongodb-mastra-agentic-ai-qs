@@ -146,12 +146,18 @@ const CAPS = [
   { key: 'audit', name: 'Audit', tip: 'Tamper-evident audit: every decision is an HMAC hash-chained, verifiable record.' },
 ];
 const capCounts = {};
+/**
+ * Whether the rail currently shows the cluster's running total (backfilled at boot by `loadCaps`)
+ * rather than the run in front of you. Only the sub-label depends on it: the same `10` means two
+ * different things before and after Launch, and one static word cannot be honest about both.
+ */
+let capCountsAreCumulative = false;
 function renderRail() {
   $('#rail').innerHTML = CAPS.map(c => `
     <div class="cap ${capCounts[c.key] ? 'active' : ''}" data-cap="${c.key}" data-tip="${esc(c.tip)}">
       <div class="ico">${icon(c.key, 19)}</div>
       <div class="name">${c.name}</div>
-      <div class="lbl2">runs</div>
+      <div class="lbl2">${capCountsAreCumulative ? 'to date' : 'runs'}</div>
       <div class="n" data-n="${c.key}">${capCounts[c.key] || 0}</div>
     </div>`).join('');
 }
@@ -160,6 +166,25 @@ function bumpCap(key) {
   capCounts[key] = (capCounts[key] || 0) + 1;
   const cap = document.querySelector(`.cap[data-cap="${key}"]`);
   if (cap) { cap.classList.add('active', 'pulse'); cap.querySelector(`[data-n="${key}"]`).textContent = capCounts[key]; setTimeout(() => cap.classList.remove('pulse'), 700); }
+}
+/**
+ * Zero the rail so it counts THIS run and nothing else.
+ *
+ * Called from all three places a run's tally starts over — Launch (live), Launch (replay) and Reset
+ * — because the same three-statement clear written inline drifted: the replay path zeroed the rail
+ * before ticking, the live path did not, so a live Launch added its counts on top of the totals
+ * `loadCaps()` backfills at boot and `10` became `20`. The label says `runs` and the pulse fires per
+ * event, so an accumulated number corresponds to nothing the viewer watched.
+ *
+ * The boot-time backfill is deliberately NOT removed: on page load the rail reports work this
+ * cluster has really done (`/api/capabilities` aggregates all of `agent_events`), which is true and
+ * is the answer to "did anything actually run here?". Launch is the point where that history stops
+ * being the subject.
+ */
+function resetRail() {
+  for (const k in capCounts) delete capCounts[k];
+  capCountsAreCumulative = false;
+  renderRail();
 }
 
 // ---- center view switching ----------------------------------------------------
@@ -594,9 +619,22 @@ async function backfillFeed() {
   const { events = [] } = await fetch('/api/feed').then(r => r.json()).catch(() => ({ events: [] }));
   events.slice().reverse().forEach(d => addFeed(d.step, `agent · ${d.step || ''}`, d.transaction_id, d.headline, d.step, d.detail));
 }
+/**
+ * Backfill the rail with this cluster's totals so a freshly-loaded page answers "has anything really
+ * run here?" — `/api/capabilities` aggregates all of `agent_events` (the frozen recording in demo
+ * mode). These are NOT this run's numbers, hence the `to date` sub-label; Launch calls `resetRail()`
+ * and the rail becomes per-run from there.
+ *
+ * Skipped once a run is under way: `loadCaps` is fired without await at boot, so a slow
+ * `/api/capabilities` could otherwise land after the first SSE events and re-add the history
+ * `resetRail()` just cleared.
+ */
 async function loadCaps() {
   const { counts = {} } = await fetch('/api/capabilities').then(r => r.json()).catch(() => ({ counts: {} }));
-  Object.assign(capCounts, counts); renderRail();
+  if (run.active) return;
+  Object.assign(capCounts, counts);
+  capCountsAreCumulative = Object.keys(counts).length > 0;
+  renderRail();
 }
 
 // ---- bottom bar: real cluster stats + the eval scorecard -----------------------
@@ -973,8 +1011,7 @@ async function runReplay(scopeCaseId = null) {
   if (!events.length) { setStatus('No baked replay found. Run `pnpm bake` first.'); endRun(); return; }
   // Choreography reset: rail + feed count only this run; every analyzed case visually returns
   // to pending, then flips as its terminal event lands.
-  for (const k in capCounts) delete capCounts[k];
-  renderRail();
+  resetRail();
   $('#feed').innerHTML = '';
   for (const a of analyses) { if (!sessionResolved[a.transaction_id]) queueOverlay[a.transaction_id] = 'pending'; }
   loadQueueRender();
@@ -1063,6 +1100,11 @@ function wire() {
       return;
     }
     setStatus('Investigation running');
+    // Same choreography reset the replay path does, for the same reason: without it the SSE events
+    // this run is about to emit accumulate on top of the boot-time backfill, so a second run reads
+    // 20 where the run produced 10. Zeroed BEFORE the run starts, so the first arriving event
+    // increments from 0 and every number on the rail belongs to the run being watched.
+    resetRail();
     enterTheater();
     try { await api('/api/investigate/run', { method: 'POST' }); } catch (e) { setStatus('Launch failed'); endRun(); }
     setTimeout(() => { if (run.active) endRun(); }, 180000); // fallback if the stream goes quiet
@@ -1075,7 +1117,7 @@ function wire() {
     $('#launchBtn').disabled = false; renderLaunchLabel();
     try {
       const r = await api('/api/reset', { method: 'POST' }).then(x => x.json());
-      $('#feed').innerHTML = ''; for (const k in capCounts) delete capCounts[k]; renderRail();
+      $('#feed').innerHTML = ''; resetRail();
       for (const k in sessionResolved) delete sessionResolved[k];
       for (const k in queueOverlay) delete queueOverlay[k];
       theater.done = [];
