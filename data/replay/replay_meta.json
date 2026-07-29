@@ -1,7 +1,7 @@
 [
   {
     "_id": {
-      "$oid": "6a679caeb25c8077669cca67"
+      "$oid": "6a6a7437425d22f61ac55527"
     },
     "corpus_size": {
       "$numberInt": "1000015"
@@ -12,10 +12,10 @@
     "source_db": "marshal_1m",
     "recorded_at": {
       "$date": {
-        "$numberLong": "1785175214689"
+        "$numberLong": "1785361463103"
       }
     },
-    "app_commit": "d6b2985",
+    "app_commit": "7bdcd17",
     "atlas_tier": "M30",
     "llm_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
   }

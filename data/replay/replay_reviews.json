@@ -1,19 +1,19 @@
 [
   {
     "_id": {
-      "$oid": "6a679b9441bad7058e84d4b8"
+      "$oid": "6a6a734622e7db704668659d"
     },
     "transaction_id": "txn-review-high",
     "created_at": {
       "$date": {
-        "$numberLong": "1785174932730"
+        "$numberLong": "1785361222074"
       }
     },
-    "evidence_hash": "c2cb91b7521e4fdf4b96f91451f671013b7883af3a52be79b556789fab00080b",
-    "flag_reason": "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
+    "evidence_hash": "f71b2692db719f41faae98b89e23da6d70de189b411ee624fd004cb5e2ad2855",
+    "flag_reason": "high_value_transaction_requires_enhanced_due_diligence",
     "rules_triggered": [
-      "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
-      "Recalled verdicts show similar high-value commodities transactions often escalated; however, direct precedent for this counterparty pair was approved",
+      "high_value_transaction_requires_enhanced_due_diligence",
+      "amount_under_established_precedent_but_still_requires_verification_of_supporting_documentation",
       "high_value_approval",
       "low_confidence"
     ],
@@ -24,8 +24,8 @@
         "$numberInt": "75000"
       },
       "risk_factors": [
-        "High-value transaction ($75,000) falls in enhanced-due-diligence threshold lane; standard policy review required",
-        "Recalled verdicts show similar high-value commodities transactions often escalated; however, direct precedent for this counterparty pair was approved",
+        "high_value_transaction_requires_enhanced_due_diligence",
+        "amount_under_established_precedent_but_still_requires_verification_of_supporting_documentation",
         "high_value_approval",
         "low_confidence"
       ],
@@ -33,29 +33,29 @@
         "$numberDouble": "0.85"
       }
     },
-    "status": "pending_review"
+    "status": "pending_review",
+    "workflow_run_id": "7cb5b27c-8324-42dc-9406-0d724b76a467"
   },
   {
     "_id": {
-      "$oid": "6a679ba041bad7058e84d4bd"
+      "$oid": "6a6a734f22e7db70466865a5"
     },
     "transaction_id": "txn-review-struct",
     "created_at": {
       "$date": {
-        "$numberLong": "1785174944722"
+        "$numberLong": "1785361231116"
       }
     },
-    "evidence_hash": "b7e82aae24e459d772910aa0dc61e08f073324dd5365a904b11ace3b9f79635a",
-    "flag_reason": "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
+    "evidence_hash": "f7df1db31c91b13414db8e094f3022681049f714ea3718cce1d2c2b1f7cfa357",
+    "flag_reason": "Structuring: deposit of $4,950 deliberately positioned just below $5,000 reporting threshold",
     "rules_triggered": [
-      "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
-      "Third in a series of sub-threshold deposits over short timeframe—classic structuring pattern",
-      "Precedent cases show identical structuring signatures, with 60% prior escalation disposition",
-      "Deliberate structuring intent evident from systematic avoidance of reporting threshold",
-      "High structuring confidence combined with ambiguity over beneficial owner and source of funds warrants human review",
+      "Structuring: deposit of $4,950 deliberately positioned just below $5,000 reporting threshold",
+      "Pattern repetition: third sub-threshold deposit within same week to same account",
+      "Circular flow detected: fund-tracing shows circular_flow=true and suspicious_patterns=true on ACC-3001",
+      "Precedent alignment: nearly identical transactions (txn-struct-01, txn-struct-02) on same account previously rejected/escalated",
+      "Evasion intent: cash deposits below reporting threshold are core structuring indicator",
       "structuring_amount",
-      "fraud_ring_suspicious",
-      "agent_requested_escalation"
+      "fraud_ring_suspicious"
     ],
     "snapshot": {
       "transaction_id": "txn-review-struct",
@@ -64,42 +64,41 @@
         "$numberInt": "4950"
       },
       "risk_factors": [
-        "Cash deposit amount ($4,950) positioned exactly $50 below CTR reporting threshold of $5,000",
-        "Third in a series of sub-threshold deposits over short timeframe—classic structuring pattern",
-        "Precedent cases show identical structuring signatures, with 60% prior escalation disposition",
-        "Deliberate structuring intent evident from systematic avoidance of reporting threshold",
-        "High structuring confidence combined with ambiguity over beneficial owner and source of funds warrants human review",
+        "Structuring: deposit of $4,950 deliberately positioned just below $5,000 reporting threshold",
+        "Pattern repetition: third sub-threshold deposit within same week to same account",
+        "Circular flow detected: fund-tracing shows circular_flow=true and suspicious_patterns=true on ACC-3001",
+        "Precedent alignment: nearly identical transactions (txn-struct-01, txn-struct-02) on same account previously rejected/escalated",
+        "Evasion intent: cash deposits below reporting threshold are core structuring indicator",
         "structuring_amount",
-        "fraud_ring_suspicious",
-        "agent_requested_escalation"
+        "fraud_ring_suspicious"
       ],
       "compliance_score": {
         "$numberDouble": "0.75"
       }
     },
-    "status": "pending_review"
+    "status": "pending_review",
+    "workflow_run_id": "eb53c2ed-b6f5-4234-abaf-8d56714e2f53"
   },
   {
     "_id": {
-      "$oid": "6a679bc241bad7058e84d4c4"
+      "$oid": "6a6a736822e7db70466865b0"
     },
     "transaction_id": "txn-review-ring",
     "created_at": {
       "$date": {
-        "$numberLong": "1785174978181"
+        "$numberLong": "1785361256618"
       }
     },
-    "evidence_hash": "a1df6c08c3df9e4319c01429e685e5594d0e169e455a850b9023da472332602f",
-    "flag_reason": "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
+    "evidence_hash": "563f939a3c7cf594989fe19e04f8d33600d4f50579ee4d0dbbb884752c915c44",
+    "flag_reason": "Circular fund flow confirmed by trace_funds with complete status",
     "rules_triggered": [
-      "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
-      "Transfer amount (900 USD) matches structuring pattern observed in 5+ rejected mule-ring precedents (620-1919 USD range)",
-      "Recipient account Vertex Holdings appears in mule-network topology per case narrative",
-      "Discrepancy between user-reported mule-network status and trace_funds output (no active network detected); requires manual verification",
-      "Prior cases in identical ring/lane category uniformly rejected",
-      "fraud_ring_suspicious",
-      "low_confidence",
-      "agent_requested_escalation"
+      "Circular fund flow confirmed by trace_funds with complete status",
+      "Sender account (ACC-RING-A) integrated into 4-account suspicious network with layering patterns",
+      "Direct precedent (txn-ring-03) shows same sender returning funds, confirming closed loop",
+      "All retrieved similar cases were rejected or escalated; four of five rejected outright",
+      "Low amount (900 USD) consistent with structuring and mule-ring distribution tactics",
+      "Narrative explicitly labels sender as part of suspected mule network",
+      "fraud_ring_suspicious"
     ],
     "snapshot": {
       "transaction_id": "txn-review-ring",
@@ -108,19 +107,19 @@
         "$numberInt": "900"
       },
       "risk_factors": [
-        "Quartz Trading previously involved in rejected circular-flow transaction (txn-ring-03) with Slate Partners",
-        "Transfer amount (900 USD) matches structuring pattern observed in 5+ rejected mule-ring precedents (620-1919 USD range)",
-        "Recipient account Vertex Holdings appears in mule-network topology per case narrative",
-        "Discrepancy between user-reported mule-network status and trace_funds output (no active network detected); requires manual verification",
-        "Prior cases in identical ring/lane category uniformly rejected",
-        "fraud_ring_suspicious",
-        "low_confidence",
-        "agent_requested_escalation"
+        "Circular fund flow confirmed by trace_funds with complete status",
+        "Sender account (ACC-RING-A) integrated into 4-account suspicious network with layering patterns",
+        "Direct precedent (txn-ring-03) shows same sender returning funds, confirming closed loop",
+        "All retrieved similar cases were rejected or escalated; four of five rejected outright",
+        "Low amount (900 USD) consistent with structuring and mule-ring distribution tactics",
+        "Narrative explicitly labels sender as part of suspected mule network",
+        "fraud_ring_suspicious"
       ],
       "compliance_score": {
         "$numberDouble": "0.75"
       }
     },
-    "status": "pending_review"
+    "status": "pending_review",
+    "workflow_run_id": "5e0e6656-0bf0-4de6-a0f2-cca14281633c"
   }
 ]
