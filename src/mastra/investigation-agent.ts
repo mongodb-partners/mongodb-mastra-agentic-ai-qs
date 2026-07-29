@@ -1,9 +1,10 @@
 import { Agent } from '@mastra/core/agent';
+import { RequestContext } from '@mastra/core/di';
 import { z } from 'zod';
 import type { Config } from '../config';
 import { logger } from '../observability/logger';
 import { getLLM, maxTokensFor, temperatureFor } from './models';
-import { buildRetrievalTools } from './tools/retrieval-tools';
+import { buildRetrievalTools, SUBJECT_ACCOUNT_KEY } from './tools/retrieval-tools';
 import type { RetrievalService } from '../retrieval/service';
 import type { ToolCallRecorder } from './tool-recorder';
 
@@ -18,7 +19,11 @@ export type Verdict = z.infer<typeof VerdictSchema>;
 
 export const INVESTIGATION_SYSTEM = `You are a financial fraud investigator. For the transaction under review:
 1. Call hybrid_search to retrieve similar ALREADY-DECIDED precedent cases.
-2. Call trace_funds on the sender's account_number to check for ring / mule / circular-flow patterns.
+2. Call trace_funds with NO arguments to check the account under review for ring / mule /
+   circular-flow patterns. Do not guess an account number: called with no arguments it already
+   traces the correct account. Pass account_id only to trace a DIFFERENT account you saw in a
+   precedent. If a trace reports trace_status other than "complete", the fund-tracing signal is
+   MISSING, not clean — say so and prefer escalate; never describe it as no ring found.
 3. Optionally call recall_verdicts to cite how closely-similar prior cases were resolved.
 4. Weigh the precedents, the fund-tracing signal, and the amount. Then produce a single verdict:
    { recommendation: approve|reject|escalate, confidence: 0-100, risk_factors: string[], rationale: string }.
@@ -53,6 +58,43 @@ export function buildInvestigationAgent(cfg: Config, svc: RetrievalService, mode
 const VERDICT_ATTEMPTS = 3;
 
 /**
+ * The identifying facts of the case, as opposed to its prose.
+ *
+ * WHY THIS EXISTS. The agent used to receive only the narrative, and a narrative names PARTIES, not
+ * accounts: "Transfer of 900 USD from Quartz Trading to Vertex Holdings…" never contains
+ * `ACC-RING-A`. The system prompt nonetheless told the model to trace the sender's account_number,
+ * so it had to invent one, and measured across all three models it always did — 'unknown',
+ * 'quartz_trading', '<UNKNOWN>', 'Quartz Trading'. Every fabrication traced nothing and (before
+ * `trace_status`) came back looking like a clean fund-trace on a case that is actually a ring.
+ *
+ * Optional, and every field within it optional, so the existing four-argument call sites keep
+ * working: without a subject the agent behaves exactly as before, and `trace_funds` reports
+ * account_not_found instead of tracing a guess.
+ */
+export interface InvestigationSubject {
+  transaction_id?: string;
+  sender_account?: string;
+  recipient_account?: string;
+}
+
+/**
+ * Render the case as identified facts plus narrative.
+ *
+ * A labelled block rather than a sentence: these values are looked up, not read, and the model needs
+ * to copy them verbatim. Only non-empty fields are emitted, so a partial subject degrades to fewer
+ * lines rather than to `sender account: undefined` — which the model would dutifully pass to a tool.
+ */
+export function formatCase(narrative: string, subject?: InvestigationSubject): string {
+  const lines = [
+    ['transaction', subject?.transaction_id],
+    ['sender account', subject?.sender_account],
+    ['recipient account', subject?.recipient_account],
+  ].filter(([, v]) => typeof v === 'string' && v !== '')
+    .map(([k, v]) => `${k}: ${v}`);
+  return lines.length ? `${lines.join('\n')}\nnarrative: ${narrative}` : narrative;
+}
+
+/**
  * Run the agent over a case narrative and return its typed verdict.
  *
  * `recorder` is optional: when supplied, every tool call the agent makes inside the COMMITTED
@@ -61,10 +103,15 @@ const VERDICT_ATTEMPTS = 3;
  */
 export async function runInvestigation(
   agent: Agent, cfg: Config, caseNarrative: string,
-  modelOverride?: string, recorder?: ToolCallRecorder,
+  modelOverride?: string, recorder?: ToolCallRecorder, subject?: InvestigationSubject,
 ): Promise<Verdict> {
   const model = modelOverride || cfg.llmModel;
-  const prompt = `Review this transaction and produce your verdict:\n\n${caseNarrative}`;
+  const prompt = `Review this transaction and produce your verdict:\n\n${formatCase(caseNarrative, subject)}`;
+
+  // The account under review, for `trace_funds` to default to. Set per generate() call rather than
+  // captured by the agent, because one agent instance serves the whole queue — see the tool.
+  const requestContext = new RequestContext();
+  if (subject?.sender_account) requestContext.set(SUBJECT_ACCOUNT_KEY, subject.sender_account);
 
   // WHY THE RETRY LOOP: `structuredOutput` is not guaranteed to produce an object. Observed on
   // Bedrock (us.anthropic.claude-haiku-4-5), roughly 1 run in 5: the agent issues its tool calls,
@@ -86,6 +133,7 @@ export async function runInvestigation(
         maxSteps: 8,
         maxTokens: maxTokensFor(model),
         temperature: temperatureFor(model),
+        requestContext,
         ...(recorder ? { hooks: recorder.hooks() } : {}),
       } as any,
     );

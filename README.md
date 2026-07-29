@@ -22,7 +22,7 @@ verdict. See [docs/architecture.md](docs/architecture.md).
 | Graph traversal | `$graphLookup` fund tracing | same |
 | Agent memory | `$vectorSearch` over decided cases | [`src/retrieval/service.ts`](src/retrieval/service.ts) |
 | Governance | `$vectorSearch` over `policies` | [`src/governance/reviewer.ts`](src/governance/reviewer.ts) |
-| Durable workflow state | Multi-document ACID transactions | [`src/workflow/case-store.ts`](src/workflow/case-store.ts) |
+| Durable workflow state | Suspended Mastra workflow runs, backed by multi-document ACID transactions | [`src/workflow/review-workflow.ts`](src/workflow/review-workflow.ts), [`src/workflow/case-store.ts`](src/workflow/case-store.ts) |
 | Audit trail | Append-only HMAC hash chain | [`src/governance/audit-chain.ts`](src/governance/audit-chain.ts) |
 | Live UI | Change streams projected as SSE | [`src/server/change-stream-sse.ts`](src/server/change-stream-sse.ts) |
 

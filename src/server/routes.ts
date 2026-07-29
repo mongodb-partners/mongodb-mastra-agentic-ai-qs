@@ -5,9 +5,10 @@ import type { Config } from '../config';
 import { ChangeStreamHub } from './change-stream-sse';
 import { AuditStore } from '../governance/audit-store';
 import { resolveReview } from '../workflow/investigate';
+import { createWorkflowMastra, resumeReviewGate } from '../workflow/review-workflow';
 import type { EvidenceSnapshot } from '../workflow/evidence';
 import { moneyToNumber } from '../money';
-import { runPendingInvestigations } from '../workflow/run-engine';
+import { runPendingInvestigations, RUN_STATE_COLLECTIONS } from '../workflow/run-engine';
 import { loadTransactionSeed } from '../ingestion/transaction-fixtures';
 import { logger } from '../observability/logger';
 import { newSessionId, signToken, verifyToken, bearer } from './session';
@@ -55,6 +56,13 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
   // `replay_*` copies in demo mode. Isolating these means a live run/reset can never corrupt the
   // demo recording — the two modes coexist on one cluster (see src/data/replay-store.ts).
   const REC = recordingSource(cfg.demoMode);
+
+  // ONE workflow instance for the process, constructed at mount. Safe to build unconditionally: its
+  // snapshot store runs on the app's own `db` through a ConnectorHandler, so it opens no connection of
+  // its own. It does create `mastra_workflow_snapshot` in the background shortly after mount — which
+  // is harmless in demo mode (never resumes a run) and harmless on a read-only user, where the write
+  // fails silently without taking the process down. Measured; see createWorkflowMastra.
+  const mastra = createWorkflowMastra(db);
 
   // Mint a stateless session token (per browser tab). No server-side session store.
   app.post('/api/token', c => {
@@ -169,11 +177,30 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
       // Real stale-evidence check (review finding #2): re-derive the evidence snapshot from CURRENT
       // case/transaction state and compare its hash to the one stored at suspend-time.
       const currentSnapshot = await deriveEvidenceSnapshot(db, id);
-      const res = await resolveReview(db, cfg.auditSecret, {
-        transaction_id: id, human_decision: body.decision,
-        echoed_evidence_hash: review.evidence_hash as string,
-        current: (currentSnapshot ?? review.snapshot) as EvidenceSnapshot, now,
-      });
+      const current = (currentSnapshot ?? review.snapshot) as EvidenceSnapshot;
+
+      // Resume the durable workflow run when this case has one, so the engine-level suspension is
+      // what carries the human verdict back into the ledger. Either way the COMMIT is the same call:
+      // the gate step delegates to `resolveReview`, so the evidence-hash re-derivation above and the
+      // multi-document ACID transaction are on both paths, and neither trusts the client's payload.
+      //
+      // The fallback is not hypothetical. A case held before the durable gate shipped has no
+      // `workflow_run_id`, a best-effort run-start may have failed, and a run already consumed by a
+      // racing caller cannot be resumed twice — `resumeReviewGate` returns undefined for all three,
+      // and the atomic claim above has already established that THIS caller owns the resolution.
+      const runId = review.workflow_run_id as string | undefined;
+      const viaGate = runId
+        ? await resumeReviewGate(mastra, db, cfg.auditSecret, {
+            runId, transaction_id: id, decision: body.decision, current, now,
+          })
+        : undefined;
+      const res = viaGate
+        ? { status: viaGate }
+        : await resolveReview(db, cfg.auditSecret, {
+            transaction_id: id, human_decision: body.decision,
+            echoed_evidence_hash: review.evidence_hash as string,
+            current, now,
+          });
       if (res.status === 'rejected_stale') {
         await db.collection('reviews').updateOne({ transaction_id: id }, { $set: { status: 'pending_review' } });
         return c.json({ status: 'rejected_stale', message: 'Evidence changed since review.' }, 409);
@@ -213,8 +240,9 @@ export function mountRoutes(app: Hono, cfg: Config, db: Db, hub: ChangeStreamHub
       return c.json({ status: 'reset', scope: 'session', transactions: loadTransactionSeed().length, demoMode: cfg.demoMode });
     }
     // LIVE mode (single-user quickstart): full reset so a fresh live run regenerates everything.
-    const clear = ['cases', 'case_decisions', 'reviews', 'audit_trail', 'agent_events', 'case_analysis'];
-    for (const n of clear) await db.collection(n).deleteMany({});
+    // The list lives next to the engine that writes it (RUN_STATE_COLLECTIONS) and is shared with
+    // `bake-replay.ts`, which resets the same state for the same reason.
+    for (const n of RUN_STATE_COLLECTIONS) await db.collection(n).deleteMany({});
     const seed = loadTransactionSeed();
     for (const s of seed) {
       await db.collection('transactions').updateOne({ transaction_id: s.transaction_id }, { $set: { status: s.status } });

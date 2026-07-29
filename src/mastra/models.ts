@@ -16,6 +16,7 @@ const MAX_TOKENS: Record<string, number> = {
   'claude-haiku-4-5': 8192,
   'us.anthropic.claude-haiku-4-5-20251001-v1:0': 8192,
   'us.anthropic.claude-sonnet-4-6': 8192,
+  'us.anthropic.claude-sonnet-5': 8192,
   'us.anthropic.claude-opus-5': 8192,
 };
 

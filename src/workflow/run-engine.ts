@@ -1,20 +1,43 @@
 import type { Db } from 'mongodb';
+import type { MongoDBVector } from '@mastra/mongodb';
 import type { Config } from '../config';
 import { RetrievalService } from '../retrieval/service';
-import { buildInvestigationAgent, runInvestigation } from '../mastra/investigation-agent';
-import { reviewAction } from '../governance/reviewer';
+import { buildInvestigationAgent } from '../mastra/investigation-agent';
 import { buildPolicyJudge } from '../governance/judge';
-import { runCaseInvestigation } from './investigate';
-import { evidenceHash, type EvidenceSnapshot } from './evidence';
-import { formatMoney, moneyToNumber } from '../money';
-import { triage, reconcile } from '../decision/core';
+import type { Mastra } from '@mastra/core';
+import { type StartGate } from './investigate';
+import { CASES_COLLECTION, DECISIONS_COLLECTION, REVIEWS_COLLECTION } from './case-store';
+import { AUDIT_COLLECTION } from '../governance/audit-store';
+import { createWorkflowMastra, startReviewGate, WORKFLOW_SNAPSHOT_COLLECTION } from './review-workflow';
+import { runQueueWorkflow } from './case-workflow';
 import { getQueryEmbedder } from '../mastra/embed';
+import { createVectorStore } from '../retrieval/vector-store';
 import { TRANSACTIONS_COLLECTION } from '../mastra/schemas/transactions';
 import { logger } from '../observability/logger';
-import { ToolCallRecorder, type ToolCallEvent } from '../mastra/tool-recorder';
+import type { ToolCallEvent } from '../mastra/tool-recorder';
 
 export const AGENT_EVENTS_COLLECTION = 'agent_events';
 export const CASE_ANALYSIS_COLLECTION = 'case_analysis';
+
+/**
+ * Everything one run writes, and therefore everything that must be cleared to reset run state.
+ *
+ * ONE list, imported by both resetters — the live-mode reset in `routes.ts` and `bake-replay.ts` —
+ * because they drifted the moment the workflow snapshot was added: the route learned about
+ * `mastra_workflow_snapshot`, the bake script did not. That drift is silent and it lands on the
+ * script that must be deterministic. Since Stage 1, `runPendingInvestigations` starts a suspended
+ * run per held case, so clearing `reviews` while leaving the snapshots behind accumulates runs
+ * suspended on cases that no longer exist — un-resumable (the resolve route reads `reviews` first)
+ * and invisible in the UI, i.e. exactly the orphaned state the workflows engine is meant to prevent.
+ *
+ * `transactions` is NOT here: a reset restores seed *statuses* rather than deleting the corpus,
+ * which at 1M would delete ~998,800 synthetic documents. The `replay_*` copies are not here either
+ * — they are immutable and demo mode reads only them.
+ */
+export const RUN_STATE_COLLECTIONS = [
+  CASES_COLLECTION, DECISIONS_COLLECTION, REVIEWS_COLLECTION, AUDIT_COLLECTION,
+  AGENT_EVENTS_COLLECTION, CASE_ANALYSIS_COLLECTION, WORKFLOW_SNAPSHOT_COLLECTION,
+] as const;
 
 /** The MongoDB capabilities each investigation exercises — surfaced to the UI capability rail. */
 export type Capability = 'vector' | 'fulltext' | 'hybrid' | 'graph' | 'memory' | 'governance' | 'durable' | 'audit';
@@ -63,8 +86,38 @@ function newRunId(): string {
  * projection of stored data.
  */
 export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ investigated: number; run_id: string }> {
+  // ONE store for the whole run, closed when the run ends.
+  //
+  // `createVectorStore` opens a full MongoClient with its own connection pool (the library bundles
+  // its own driver), so the two things to avoid are constructing one per case — 50 pending
+  // transactions would open 50 pools — and holding one for the life of the process, which leaks a
+  // pool because the server has no shutdown hook to close it in. A run is the natural scope: it is
+  // serialized by `runInFlight` in routes.ts, so at most one exists at a time, and the `finally`
+  // below returns the pool whether the queue completes or throws.
+  const store = await createVectorStore(cfg, 'marshal-retrieval');
+  try {
+    // The workflow instance needs no matching teardown: its snapshot store runs on the app's OWN v6
+    // client through a ConnectorHandler, so it holds no pool of its own (see review-workflow.ts).
+    // Its only I/O is creating the snapshot collection in the background, which fails harmlessly
+    // where it cannot write — so this is safe even on the offline bake path.
+    return await runQueue(db, cfg, store, createWorkflowMastra(db));
+  } finally {
+    // A pool this fails to return is worth a log line, not a failed run: the queue's work is already
+    // committed by here, and rethrowing would replace a real result (or a real error) with a
+    // teardown error.
+    await store.disconnect().catch(err => {
+      logger.warn('retrieval store did not disconnect cleanly', { err: String(err) });
+    });
+  }
+}
+
+async function runQueue(db: Db, cfg: Config, store: MongoDBVector, mastra: Mastra): Promise<{ investigated: number; run_id: string }> {
+  // Held cases get a durable suspended workflow run alongside the authoritative `reviews` write.
+  // Best-effort: startReviewGate swallows its own failures and returns undefined, so a snapshot-store
+  // problem costs the durable pause, never the held case.
+  const startGate: StartGate = input => startReviewGate(mastra, db, cfg.auditSecret, input);
   const emb = getQueryEmbedder(cfg);
-  const svc = new RetrievalService(db, t => emb.embedQuery(t));
+  const svc = new RetrievalService(db, store, t => emb.embedQuery(t));
   const agent = buildInvestigationAgent(cfg, svc);
   const judge = buildPolicyJudge(cfg);
 
@@ -77,121 +130,33 @@ export async function runPendingInvestigations(db: Db, cfg: Config): Promise<{ i
   const run_id = newRunId();
   logger.info('investigation run starting', { run_id, pending: pending.length });
 
-  let n = 0;
-  for (const t of pending as any[]) {
-    const id = t.transaction_id;
-
-    // PER-CASE ISOLATION: one bad case must not abandon the rest of the queue. Anything that can
-    // throw here is per-transaction (a model call that never yields a valid verdict, a tool error,
-    // a single failed write), so a run over 50 pending transactions used to stop at the first one
-    // and leave the remainder silently untouched. Record the failure as a visible step event and
-    // move on; `investigated` counts only the cases that actually completed.
-    try {
-      const caps = new Set<Capability>();
-      const facts0 = { transaction_id: id, amount: t.amount, sender_account: t.sender.account_number, lane: t.lane, sanctions_hit: t.lane === 'sanctions', ring_suspicious: false };
-      // formatMoney, not t.amount.toLocaleString(): Decimal128 HAS a toLocaleString, and it
-      // returns a bare "4950.00" with no thousands separator — so this reads as a formatting
-      // regression in the demo's first visible line rather than as an error.
-      await emit(db, { run_id, transaction_id: id, step: 'triage', headline: `Investigating ${id}`, detail: `$${formatMoney(t.amount)} · ${t.lane}` });
-
-      // HARD-COMPLIANCE GATE, BEFORE any LLM. A sanctions/watchlist hit is a deterministic reject —
-      // the agent and policy judge are never consulted (no tokens, no chance of an LLM overriding a
-      // hard reject). This mirrors decision/core.triage() and must run first (review finding #1).
-      const hard = triage(facts0);
-      if (hard) {
-        caps.add('durable'); caps.add('audit');
-        await emit(db, { run_id, transaction_id: id, step: 'govern', headline: `Hard compliance: ${hard.risk_factors[0]}`, detail: 'deterministic reject — agent not consulted', capabilities: ['governance'] });
-        const now0 = new Date().toISOString();
-        await runCaseInvestigation(db, cfg.auditSecret, facts0, { recommendation: 'reject', confidence: 100, risk_factors: hard.risk_factors, rationale: hard.rationale }, 0, false, now0);
-        await db.collection(CASE_ANALYSIS_COLLECTION).replaceOne({ transaction_id: id }, {
-          transaction_id: id, amount: t.amount, lane: t.lane, sender: t.sender, recipient: t.recipient, narrative: t.text,
-          precedents: [], memory: [], ring: { edges: [] }, governance: { compliance_score: 0, violations: [], held: false, dropped_citations: [] },
-          verdict: { recommendation: 'reject', confidence: 100, risk_factors: hard.risk_factors, rationale: hard.rationale },
-          tool_calls: [],
-          decision: { disposition: hard.disposition, decided_by: hard.decided_by, risk_factors: hard.risk_factors, rationale: hard.rationale },
-          phase: 'committed', capabilities: [...caps], updated_at: new Date(),
-        }, { upsert: true });
-        await emit(db, { run_id, transaction_id: id, step: 'commit', capabilities: ['durable', 'audit'], headline: `Auto-reject (compliance)`, detail: 'reject' });
-        n++;
-        continue;
+  // Hand the queue its dependencies AND its side effects. The steps decide WHAT to record; these
+  // decide where it lands — which is what keeps `agent_events` written by hand with `toolEventDoc`'s
+  // recorded `ts` intact, rather than the engine's idea of a timestamp, and keeps this module the only
+  // place that names a collection.
+  const investigated = await runQueueWorkflow(mastra, {
+    db, cfg, run_id, svc, agent, judge, store, startGate,
+    pending: pending as Record<string, any>[],
+    embedQuery: (x: string) => emb.embedQuery(x),
+    emit: (e: Parameters<typeof emit>[1]) => emit(db, e),
+    writeToolEvents: async (transaction_id: string, events: ToolCallEvent[]) => {
+      for (const te of events) {
+        await db.collection(AGENT_EVENTS_COLLECTION).insertOne(toolEventDoc(run_id, transaction_id, te));
       }
-
-      // Retrieval (hybrid = vector + full-text fused server-side by $rankFusion).
-      const precedents = await svc.hybrid(t.text, 4);
-      caps.add('hybrid'); caps.add('vector'); caps.add('fulltext');
-      await emit(db, { run_id, transaction_id: id, step: 'retrieve', headline: `${precedents.length} precedents (hybrid search)`, detail: precedents.map(p => p.transaction_id).join(', '), capabilities: ['hybrid', 'vector', 'fulltext'] });
-
-      // Memory recall (cite prior verdicts).
-      const memory = precedents.slice(0, 2).map(p => ({ transaction_id: p.transaction_id, disposition: p.status, lane: p.lane }));
-      if (memory.length) {
-        caps.add('memory');
-        await emit(db, { run_id, transaction_id: id, step: 'recall', headline: `Recalled ${memory.length} prior verdict(s)`, detail: memory.map(m => `${m.transaction_id}→${m.disposition}`).join(', '), capabilities: ['memory'] });
-      }
-
-      // Agent reasoning. The recorder turns each of the agent's own tool calls into a timeline
-      // event, so the model's thinking window shows the Atlas operations happening inside it
-      // instead of reading as one dead gap. Fresh per case: drain() is called right below, but a
-      // per-case instance also means a case that throws cannot leak its calls into the next one.
-      const recorder = new ToolCallRecorder();
-      const verdict = await runInvestigation(agent, cfg, t.text, undefined, recorder);
-
-      // Tool events go in BEFORE the reason event and in call order — they are how the verdict was
-      // reached, and in live mode the change stream delivers them in insertion order.
-      const toolEvents = recorder.drain();
-      for (const te of toolEvents) {
-        te.capabilities?.forEach(c => caps.add(c));
-        await db.collection(AGENT_EVENTS_COLLECTION).insertOne(toolEventDoc(run_id, id, te));
-      }
-      await emit(db, { run_id, transaction_id: id, step: 'reason', headline: `Agent: ${verdict.recommendation} · confidence ${verdict.confidence}`, detail: verdict.risk_factors[0] });
-
-      // Graph fund-tracing ($graphLookup) runs on every case — emit either way so the rail reflects it.
-      const ring = await svc.traceFundsGraph(t.sender.account_number);
-      caps.add('graph');
-      await emit(db, {
-        run_id, transaction_id: id, step: 'graph', capabilities: ['graph'],
-        headline: ring.suspicious_patterns ? `Ring detected · ${ring.network_size} hops` : `Fund-trace clean`,
-        detail: ring.suspicious_patterns ? `circular_flow=${ring.circular_flow} layering=${ring.layering}` : `network_size=${ring.network_size}`,
-      });
-
-      // Governance review.
-      const gov = await reviewAction(db, x => emb.embedQuery(x), judge, `Disposition ${verdict.recommendation} for ${id}: ${t.text}`);
-      caps.add('governance');
-      await emit(db, { run_id, transaction_id: id, step: 'govern', headline: `Policy score ${gov.compliance_score}${gov.held ? ' · HELD' : ''}`, detail: gov.violations.map(v => v.policy_code).join(', '), capabilities: ['governance'] });
-
-      // Deterministic decision + durable gate.
-      const facts = { transaction_id: id, amount: t.amount, sender_account: t.sender.account_number, lane: t.lane, sanctions_hit: t.lane === 'sanctions', ring_suspicious: ring.suspicious_patterns };
-      const decision = triage(facts) ?? reconcile(facts, verdict);
-      const now = new Date().toISOString();
-      const snapshot: EvidenceSnapshot = {
-        transaction_id: id, proposed_disposition: decision.disposition, amount: moneyToNumber(t.amount),
-        risk_factors: decision.risk_factors, compliance_score: gov.compliance_score,
-      };
-      const out = await runCaseInvestigation(db, cfg.auditSecret, facts, verdict, gov.compliance_score, gov.held, now);
-      caps.add('durable'); caps.add('audit');
-
-      // Persist the full analysis for the case-detail view (projection of stored data).
-      await db.collection(CASE_ANALYSIS_COLLECTION).replaceOne({ transaction_id: id }, {
-        transaction_id: id, amount: t.amount, lane: t.lane,
-        sender: t.sender, recipient: t.recipient, narrative: t.text,
-        precedents, memory, ring, governance: gov, verdict,
-        tool_calls: toolEvents.map(te => te.tool),
-        decision: { disposition: decision.disposition, decided_by: decision.decided_by, risk_factors: decision.risk_factors, rationale: decision.rationale },
-        phase: out.phase, evidence_hash: out.evidence_hash ?? evidenceHash(snapshot),
-        snapshot, capabilities: [...caps], updated_at: new Date(),
-      }, { upsert: true });
-
-      await emit(db, {
-        run_id, transaction_id: id, step: out.phase === 'suspended' ? 'suspend' : 'commit',
-        capabilities: ['durable', 'audit'],
-        headline: out.phase === 'suspended' ? `HELD for human review` : `Auto-${out.decision.disposition}`,
-        detail: out.decision.disposition,
-      });
-      n++;
-    } catch (err) {
-      logger.error('investigation failed for transaction', { transaction_id: id, err: String(err) });
-      await emit(db, { run_id, transaction_id: id, step: 'error', headline: 'Investigation failed', detail: String(err) })
+    },
+    writeAnalysis: async (doc: Record<string, unknown>) => {
+      await db.collection(CASE_ANALYSIS_COLLECTION)
+        .replaceOne({ transaction_id: doc.transaction_id as string }, doc, { upsert: true });
+    },
+    // PER-CASE ISOLATION. One bad case must not abandon the rest of the queue: anything that can throw
+    // is per-transaction (a model call that never yields a valid verdict, a tool error, a single failed
+    // write), and a run over 50 pending transactions must not stop at the first one and leave the
+    // remainder silently untouched. Record the failure as a visible step event and continue.
+    onCaseError: async (transaction_id, err) => {
+      logger.error('investigation failed for transaction', { transaction_id, err: String(err) });
+      await emit(db, { run_id, transaction_id, step: 'error', headline: 'Investigation failed', detail: String(err) })
         .catch(() => { /* the queue continues even if we cannot record why */ });
-    }
-  }
-  return { investigated: n, run_id };
+    },
+  });
+  return { investigated, run_id };
 }

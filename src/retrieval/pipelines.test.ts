@@ -122,6 +122,30 @@ describe('summarizeRing', () => {
     expect(r.network_size).toBe(0);
     expect(r.suspicious_patterns).toBe(false);
   });
+
+  it('defaults trace_status to complete, so a caller holding a chain asserts it looked', () => {
+    expect(summarizeRing({ chain: [] }, 'A').trace_status).toBe('complete');
+  });
+
+  it('carries the caller\'s trace_status through', () => {
+    // The distinction the summary alone cannot make: all three of these produce network_size 0 and
+    // suspicious_patterns false, and only `trace_status` says whether that is a finding.
+    expect(summarizeRing({ chain: [] }, 'A', 'account_not_found').trace_status).toBe('account_not_found');
+    expect(summarizeRing({ chain: [] }, 'A', 'incomplete').trace_status).toBe('incomplete');
+  });
+
+  it('still reports a ring found in a chain that is only PARTIAL', () => {
+    // An `incomplete` trace ran out of memory partway, but what it did walk is real. Suppressing a
+    // true positive because the traversal was cut short would lose the finding entirely.
+    const chain = [
+      { sender: { account_number: 'A' }, recipient: { account_number: 'B' }, amount: 920 },
+      { sender: { account_number: 'B' }, recipient: { account_number: 'A' }, amount: 880 },
+    ];
+    const r = summarizeRing({ chain }, 'A', 'incomplete');
+    expect(r.circular_flow).toBe(true);
+    expect(r.suspicious_patterns).toBe(true);
+    expect(r.trace_status).toBe('incomplete');
+  });
 });
 
 describe('summarizeRing with Decimal128 edge amounts', () => {

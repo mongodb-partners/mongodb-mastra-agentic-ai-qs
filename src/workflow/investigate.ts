@@ -1,6 +1,6 @@
 import { triage, reconcile, type TxnFacts, type AgentVerdict, type DecisionResult } from '../decision/core';
 import { evidenceHash, evidenceMatches, type EvidenceSnapshot } from './evidence';
-import { commitCaseDecision, enqueueReview } from './case-store';
+import { attachReviewRun, commitCaseDecision, enqueueReview } from './case-store';
 import { moneyToNumber } from '../money';
 import type { Db } from 'mongodb';
 
@@ -11,7 +11,26 @@ export interface InvestigationOutcome {
   /** 'committed' => auto-decided + persisted; 'suspended' => held for human review (durable gate). */
   phase: 'committed' | 'suspended';
   evidence_hash?: string;
+  /**
+   * The suspended workflow run backing this hold, when one was started.
+   *
+   * Absent is normal and must stay handleable: no `startGate` was supplied, the run failed to start
+   * (best-effort by design — see startReviewGate), or the case was held before the durable gate
+   * shipped. `reviews` is authoritative either way.
+   */
+  workflow_run_id?: string;
 }
+
+/**
+ * Starts the durable review-gate run for a held case and returns its run id.
+ *
+ * Injected rather than imported so this module keeps taking its side effects as arguments — the same
+ * reason the agent verdict is passed in. Every existing caller omits it and behaves exactly as
+ * before, which is what makes the durable gate additive rather than a rewrite.
+ */
+export type StartGate = (input: {
+  transaction_id: string; evidence_hash: string; flag_reason: string; snapshot: EvidenceSnapshot;
+}) => Promise<string | undefined>;
 
 /**
  * Run one case: deterministic triage → (agent verdict, provided by caller) reconcile →
@@ -25,6 +44,7 @@ export interface InvestigationOutcome {
 export async function runCaseInvestigation(
   db: Db, auditSecret: string,
   facts: TxnFacts, verdict: AgentVerdict, complianceScore: number, held: boolean, now: string,
+  startGate?: StartGate,
 ): Promise<InvestigationOutcome> {
   const hard = triage(facts);
   const decision = hard ?? reconcile(facts, verdict);
@@ -41,15 +61,28 @@ export async function runCaseInvestigation(
       compliance_score: complianceScore,
     };
     const hash = evidenceHash(snapshot);
+    const flag_reason = decision.risk_factors[0] ?? 'held_for_review';
     await enqueueReview(db, {
       transaction_id: facts.transaction_id,
-      flag_reason: decision.risk_factors[0] ?? 'held_for_review',
+      flag_reason,
       rules_triggered: decision.risk_factors,
       evidence_hash: hash,
       snapshot: snapshot as unknown as Record<string, unknown>,
       now,
     });
-    return { transaction_id: facts.transaction_id, decision, compliance_score: complianceScore, phase: 'suspended', evidence_hash: hash };
+    // Start the durable gate AFTER the authoritative write, never before. `enqueueReview` is what
+    // makes the case exist for a human; the workflow run is the advisory durable pause around it. In
+    // this order a failure to start the run costs the pause and nothing else — reversing them would
+    // open a window where a suspended run points at a review that was never enqueued.
+    const workflow_run_id = await startGate?.({
+      transaction_id: facts.transaction_id, evidence_hash: hash, flag_reason, snapshot,
+    });
+    if (workflow_run_id) await attachReviewRun(db, facts.transaction_id, workflow_run_id);
+    return {
+      transaction_id: facts.transaction_id, decision, compliance_score: complianceScore,
+      phase: 'suspended', evidence_hash: hash,
+      ...(workflow_run_id ? { workflow_run_id } : {}),
+    };
   }
 
   await commitCaseDecision(db, auditSecret, {

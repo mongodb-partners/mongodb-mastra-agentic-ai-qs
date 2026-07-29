@@ -15,6 +15,7 @@ import { MongoClient } from 'mongodb';
 import { loadConfig } from '../src/config';
 import { createVoyageEmbedder, resolveVoyageBaseUrl, EMBED_MODEL } from '../src/mastra/embed';
 import { RetrievalService } from '../src/retrieval/service';
+import { createVectorStore } from '../src/retrieval/vector-store';
 import { VoyageAIClient } from 'voyageai';
 
 const K = 5;
@@ -60,7 +61,8 @@ async function main() {
       },
     }
     : createVoyageEmbedder({ client: voyage as any, model });
-  const svc = new RetrievalService(db, t => emb.embedQuery(t));
+  const store = await createVectorStore(cfg, 'marshal-retrieval-probe');
+  const svc = new RetrievalService(db, store, t => emb.embedQuery(t));
 
   // Measure vector AND hybrid separately: hybrid blends in BM25, which would partly mask a purely
   // vector-side regression. The embedding model only moves the vector leg directly.
@@ -92,6 +94,7 @@ async function main() {
       console.log(`${r.lane.padEnd(14)} vec=${r.vector_p} hyb=${r.hybrid_p}  vec:[${r.vector_lanes.join(',')}]`);
     }
   }
+  await store.disconnect();
   await client.close();
 }
 

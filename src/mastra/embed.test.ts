@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   createVoyageEmbedder, resolveVoyageBaseUrl, EMBED_MODEL, EMBED_BATCH_SIZE,
   MONGODB_VOYAGE_BASE_URL, type TextEmbedClient,
@@ -86,5 +87,34 @@ describe('embed', () => {
   it('defaults to the MongoDB-hosted Voyage endpoint', () => {
     expect(resolveVoyageBaseUrl({ voyageBaseUrl: undefined } as any)).toBe(MONGODB_VOYAGE_BASE_URL);
     expect(resolveVoyageBaseUrl({ voyageBaseUrl: 'https://custom' } as any)).toBe('https://custom');
+  });
+
+  describe('the tokenizer dependency stays out of the dependency tree', () => {
+    // WHY THIS TEST EXISTS. `@mastra/voyageai` is a real dependency here, but only for its types and
+    // its reranker. The obvious "finish the job" change — swapping this file's raw `client.embed` for
+    // `createVoyageTextEmbedding` — puts a huggingface.co ROUND TRIP ON THE LIVE QUERY PATH:
+    // `VoyageTextEmbeddingModelV3.doEmbed` delegates to V2, whose `doEmbed` calls
+    // `createTokenAwareBatches` -> `client.tokenize()` unconditionally, which needs
+    // `@huggingface/transformers` and fetches the tokenizer from huggingface.co on first call. The
+    // Track B box is VPN-restricted, so that first `embedQuery` would hang or fail there and nowhere
+    // else. It is also ~521MB of node_modules (`@huggingface/transformers` 263MB + `onnxruntime-node`
+    // 258MB).
+    //
+    // What makes it worth a test rather than a comment: `voyageai` lists the tokenizer as an
+    // OPTIONAL peer, so adding the embedder produces no install warning and no type error — it
+    // type-checks, installs clean, and throws at the first embed. This assertion is the only place
+    // that failure becomes visible before deploy.
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    const declared = { ...pkg.dependencies, ...pkg.devDependencies };
+
+    it.each(['@huggingface/transformers', 'onnxruntime-node'])('does not depend on %s', dep => {
+      expect(declared).not.toHaveProperty(dep);
+    });
+
+    it('keeps @mastra/voyageai itself, since the types and the reranker are dep-free', () => {
+      // The reranker (`client.rerank`) never tokenizes, so the package earns its place; this guards
+      // against "fixing" the above by dropping the dependency altogether.
+      expect(pkg.dependencies).toHaveProperty('@mastra/voyageai');
+    });
   });
 });

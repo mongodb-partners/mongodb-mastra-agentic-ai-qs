@@ -164,17 +164,54 @@ export function buildGraphPipeline(
   ];
 }
 
+/**
+ * Did this trace actually observe the account's network?
+ *
+ * Three outcomes, and only one of them is a finding. An empty chain is produced by all three:
+ *
+ *   - `complete`          the seed account exists and its closure was walked. An empty chain here
+ *                         is real evidence: this account transfers to nobody.
+ *   - `account_not_found` no transaction in the corpus has this account as its sender, so there was
+ *                         nothing to walk. Produced by a typo, a stale id, or — measured — a model
+ *                         inventing one ('<UNKNOWN>', 'Quartz Trading') when it was never told the
+ *                         account number.
+ *   - `incomplete`        the traversal hit the 100 MB $graphLookup ceiling (code 40099) partway.
+ *                         The account is real and MAY be ringed; we simply could not finish looking.
+ *
+ * WHY THIS IS A SEPARATE FIELD rather than folded into `suspicious_patterns`. The two questions are
+ * independent: "what did we see" and "did we get to look". Collapsing them either way produces a
+ * false statement — reporting `suspicious_patterns: true` for an account we never found makes the
+ * console announce "Ring detected · 0 hops", and leaving the caller with only
+ * `suspicious_patterns: false` makes "we could not check" indistinguishable from "this account is
+ * clean". In a fraud trace those are opposite conclusions, and the second is the dangerous one: it
+ * is an absence of evidence presented as evidence of absence, and it reached a hash-sealed audit
+ * record. So `suspicious_patterns` keeps meaning exactly what it says (patterns actually observed),
+ * and callers that need to know whether the observation is trustworthy read this.
+ */
+export type TraceStatus = 'complete' | 'account_not_found' | 'incomplete';
+
 export interface RingSummary {
   network_size: number;
   unique_accounts: number;
   circular_flow: boolean;
   layering: boolean;
   suspicious_patterns: boolean;
+  /** Whether the traversal actually observed this account's network. See TraceStatus. */
+  trace_status: TraceStatus;
 }
 
-/** Turn a $graphLookup chain into fraud-ring signals: circular flow back to the seed account,
- *  layering (many small transfers), and overall network size. */
-export function summarizeRing(graphDoc: { chain?: any[] }, seedAccount: string): RingSummary {
+/**
+ * Turn a $graphLookup chain into fraud-ring signals: circular flow back to the seed account,
+ * layering (many small transfers), and overall network size.
+ *
+ * `status` defaults to 'complete' because that is what a caller handing over a chain it already
+ * holds is asserting — it has a document, so the seed account existed. Only RetrievalService can
+ * distinguish the other two cases (they are the shapes it gets back INSTEAD of a document), so it
+ * passes the status explicitly.
+ */
+export function summarizeRing(
+  graphDoc: { chain?: any[] }, seedAccount: string, status: TraceStatus = 'complete',
+): RingSummary {
   const chain = graphDoc.chain ?? [];
   const accounts = new Set<string>();
   let smallTransfers = 0;
@@ -194,6 +231,11 @@ export function summarizeRing(graphDoc: { chain?: any[] }, seedAccount: string):
     unique_accounts: accounts.size,
     circular_flow: circularFlow,
     layering,
+    // Deliberately unqualified by `status`: this reports what the chain SHOWS. A trace that found
+    // nothing to look at cannot show patterns, so this is already false in those cases — and a
+    // partial (40099) chain can legitimately show a ring in the part that did get walked, which is
+    // a true positive worth keeping. `trace_status` is what tells a caller how much to trust it.
     suspicious_patterns: circularFlow || layering || networkSize >= 3,
+    trace_status: status,
   };
 }

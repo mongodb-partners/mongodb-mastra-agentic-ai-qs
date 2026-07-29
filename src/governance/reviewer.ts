@@ -1,6 +1,7 @@
-import type { Db } from 'mongodb';
+import type { MongoDBVector } from '@mastra/mongodb';
 import { z } from 'zod';
-import { POLICIES_COLLECTION, POLICY_VECTOR_INDEX, type Severity } from './policies';
+import type { Severity } from './policies';
+import { POLICIES_INDEX } from '../retrieval/vector-store';
 import { evaluateGovernance, type GovernanceResult, type Violation } from './review';
 import { logger } from '../observability/logger';
 
@@ -22,21 +23,52 @@ export type ReviewerOutput = z.infer<typeof ReviewerOutputSchema>;
  *  the reviewer is testable without a live model. */
 export type PolicyJudge = (args: { action: string; policies: RetrievedPolicy[] }) => Promise<ReviewerOutput>;
 
-/** Retrieve the policies most relevant to an action via $vectorSearch (current versions only). */
+/**
+ * Retrieve the policies most relevant to an action via $vectorSearch (current versions only).
+ *
+ * Runs through `@mastra/mongodb`'s `MongoDBVector` against the read-only BYO `policies` index.
+ *
+ * `metadataMode: 'document'` is what makes this work at all, and its failure mode is why the
+ * document-mode mapping below is spelled out field by field rather than spread. These are the app's
+ * own operational policy documents, not vectors the store upserted, so there is no managed
+ * `metadata` subdocument for the default `'field'` mode to project — in that mode every result comes
+ * back with `metadata: undefined`, so every `policy_code` is `undefined`. Nothing throws. Instead
+ * `evaluateGovernance`'s hallucination filter, which keeps only codes present in the retrieved set,
+ * drops every citation the judge makes: the case reports zero violations and a compliance score of
+ * 1.0, indistinguishable from a genuinely clean review. That is the same
+ * absence-of-evidence-as-evidence-of-absence shape as a fabricated fund trace, and it would reach
+ * the hash-sealed audit record as an attestation that policy was checked and passed.
+ *
+ * No `$project` equivalent is needed: `severity` and `policy_code` come off the source document, and
+ * the library already `$unset`s the embedding in document mode.
+ */
 export async function retrieveRelevantPolicies(
-  db: Db, embedQuery: EmbedQuery, action: string, limit = 5,
+  store: MongoDBVector, embedQuery: EmbedQuery, action: string, limit = 5,
 ): Promise<RetrievedPolicy[]> {
-  const qvec = await embedQuery(action);
-  return db.collection(POLICIES_COLLECTION).aggregate<RetrievedPolicy>([
-    {
-      $vectorSearch: {
-        index: POLICY_VECTOR_INDEX, path: 'embedding', queryVector: qvec,
-        numCandidates: Math.max(50, limit * 10), limit,
-        filter: { is_current_version: true },
-      },
-    },
-    { $project: { _id: 0, policy_code: 1, policy_text: 1, severity: 1, category: 1 } },
-  ]).toArray();
+  const queryVector = await embedQuery(action);
+  const hits = await store.query({
+    indexName: POLICIES_INDEX,
+    queryVector,
+    topK: limit,
+    // Explicit, preserving the previous `Math.max(50, limit * 10)`. Five short policy documents put
+    // this nowhere near the 1M-corpus tail that VECTOR_CANDIDATE_FLOOR exists for, but the library's
+    // `topK * 20` default would still silently redefine it, so it is stated rather than inherited.
+    numCandidates: Math.max(50, limit * 10),
+    metadataMode: 'document',
+    // Pushed into `$vectorSearch.filter`: `is_current_version` is a declared filter path in the
+    // app's own index definition (provision-policies.ts), so superseded revisions are excluded by
+    // the search itself rather than after the fact.
+    filter: { is_current_version: true },
+  });
+  return hits.map(h => {
+    const m = (h.metadata ?? {}) as Record<string, any>;
+    return {
+      policy_code: m.policy_code,
+      policy_text: m.policy_text,
+      severity: m.severity as Severity,
+      category: m.category,
+    };
+  });
 }
 
 /**
@@ -45,9 +77,9 @@ export async function retrieveRelevantPolicies(
  * governance verdict is grounded (only retrieved policies count) and reproducible (severity math).
  */
 export async function reviewAction(
-  db: Db, embedQuery: EmbedQuery, judge: PolicyJudge, action: string,
+  store: MongoDBVector, embedQuery: EmbedQuery, judge: PolicyJudge, action: string,
 ): Promise<GovernanceResult & { retrieved: RetrievedPolicy[]; judge_unavailable?: true }> {
-  const policies = await retrieveRelevantPolicies(db, embedQuery, action);
+  const policies = await retrieveRelevantPolicies(store, embedQuery, action);
   let out: ReviewerOutput;
   try {
     out = await judge({ action, policies });

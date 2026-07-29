@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildRetrievalTools } from './retrieval-tools';
+import { RequestContext } from '@mastra/core/di';
+import { buildRetrievalTools, SUBJECT_ACCOUNT_KEY } from './retrieval-tools';
 
 // A stub RetrievalService with the five methods the tools call.
 const stub = {
@@ -10,9 +11,11 @@ const stub = {
   })),
   lexical: async () => [{ transaction_id: 'lx', text: 't', amount: 1, currency: 'USD', sender: { name: 's', account_number: 'A' }, recipient: { name: 'r', account_number: 'B' }, status: 'approved', lane: 'clean_approve' }],
   hybrid: async () => [{ transaction_id: 'hy', text: 't', amount: 1, currency: 'USD', sender: { name: 's', account_number: 'A' }, recipient: { name: 'r', account_number: 'B' }, status: 'escalated', lane: 'ring' }],
-  traceFunds: async (_acct: string, depth?: number) => ({
+  // Echoes the account it was asked to trace, so a test can assert WHICH account was traced —
+  // the defaulting behaviour is otherwise invisible.
+  traceFunds: async (acct: string, depth?: number) => ({
     network_size: 3, unique_accounts: 3, circular_flow: true, layering: true,
-    suspicious_patterns: true, depth_used: depth,
+    suspicious_patterns: true, trace_status: 'complete', depth_used: depth, traced: acct,
   }),
 } as any;
 
@@ -40,6 +43,38 @@ describe('retrieval tools', () => {
     const r = await run(tools.traceFunds, { account_id: 'ACC-RING-A' });
     expect(r.suspicious_patterns).toBe(true);
     expect(r.depth_used).toBe(3);
+  });
+
+  describe('trace_funds defaults to the account under review', () => {
+    // WHY: with account_id required and the account absent from the narrative, every model tested
+    // fabricated one, and a fabricated account traced nothing that then read as clean. Defaulting
+    // server-side makes the common path unfakeable.
+    /** Run a tool with a bound case account, the way the agent does. */
+    const withAccount = (account: string) => {
+      const rc = new RequestContext();
+      rc.set(SUBJECT_ACCOUNT_KEY, account);
+      return { requestContext: rc };
+    };
+
+    it('traces the requestContext account when account_id is omitted', async () => {
+      const r = await (tools.traceFunds as any).execute({}, withAccount('ACC-RING-A'));
+      expect(r.traced).toBe('ACC-RING-A');
+      expect(r.account_traced).toBe('ACC-RING-A');
+    });
+
+    it('still honours an explicit account_id, for tracing a second-hop account', async () => {
+      const r = await (tools.traceFunds as any).execute({ account_id: 'ACC-OTHER' }, withAccount('ACC-RING-A'));
+      expect(r.traced).toBe('ACC-OTHER');
+    });
+
+    it('reports not-found instead of tracing an empty account when there is no context', async () => {
+      // A direct execute() caller with no case bound. Tracing '' would match nothing and read clean.
+      const r = await run(tools.traceFunds, {});
+      expect(r.trace_status).toBe('account_not_found');
+      expect(r.suspicious_patterns).toBe(false);
+      expect(r.error).toMatch(/no account to trace/);
+      expect(r.traced).toBeUndefined();
+    });
   });
 
   it('REFUSES an over-deep trace request rather than running it', async () => {

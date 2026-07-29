@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 import { loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
-import { runPendingInvestigations } from '../src/workflow/run-engine';
+import { runPendingInvestigations, RUN_STATE_COLLECTIONS } from '../src/workflow/run-engine';
 import { loadTransactionSeed } from '../src/ingestion/transaction-fixtures';
 import { snapshotReplay } from '../src/data/replay-store';
 import { collectProvenance } from './replay-provenance';
@@ -25,8 +25,10 @@ async function main() {
   const db: any = client.db(cfg.mongoDb);
   db.client = client;
 
-  // Clean prior run state and restore every seed transaction to its seed status.
-  for (const n of ['cases', 'case_decisions', 'reviews', 'audit_trail', 'agent_events', 'case_analysis']) {
+  // Clean prior run state and restore every seed transaction to its seed status. Shares its list
+  // with the live-mode reset (RUN_STATE_COLLECTIONS) — a bake that left a collection behind would
+  // fold prior state into a recording that is then published as immutable.
+  for (const n of RUN_STATE_COLLECTIONS) {
     await db.collection(n).deleteMany({});
   }
   const seed = loadTransactionSeed();

@@ -11,6 +11,9 @@ import { checkReplayHealth } from '../src/data/replay-health';
 import { TRANSACTIONS_COLLECTION } from '../src/mastra/schemas/transactions';
 import { provisionPolicyIndexes, seedPolicies } from '../src/governance/provision-policies';
 import { getQueryEmbedder } from '../src/mastra/embed';
+import { createVectorStore, registerByoIndexes } from '../src/retrieval/vector-store';
+import { WorkflowsStorageMongoDB } from '@mastra/mongodb';
+import { WORKFLOW_SNAPSHOT_COLLECTION } from '../src/workflow/review-workflow';
 
 async function main() {
   try { process.loadEnvFile(); } catch { /* .env optional */ }
@@ -75,6 +78,42 @@ async function main() {
     await db.collection('session_resolutions').createIndex({ sessionId: 1 }).catch(() => {});
     await db.collection('session_resolutions').createIndex({ decided_at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {});
     logger.info('provisioned session_resolutions (indexed + 24h TTL)');
+
+    // Durable review gate: `mastra_workflow_snapshot` is created and indexed by the workflows engine
+    // itself, so this run deliberately neither creates it nor adds indexes to it — and equally
+    // deliberately gives it NO TTL, unlike session_resolutions above: a case can sit with a human for
+    // days, and expiring the snapshot would silently delete the pause.
+    //
+    // Measured on the box: the engine creates it at APP BOOT, empty, not on the first suspended run —
+    // so a freshly provisioned cluster shows 11 collections the moment the server starts, and an empty
+    // `mastra_workflow_snapshot` means "nothing is paused", not "the gate has never been wired up".
+    //
+    // What IS checked is the name, against the library's own declaration. `WORKFLOW_SNAPSHOT_COLLECTION`
+    // is what the live-mode reset clears (routes.ts); if a library upgrade renamed the collection, the
+    // reset would go on succeeding while clearing nothing, leaving orphaned runs. Cheap, no I/O, and
+    // it fails on the provision run rather than in front of an audience.
+    const managed = WorkflowsStorageMongoDB.MANAGED_COLLECTIONS as readonly string[];
+    if (!managed.includes(WORKFLOW_SNAPSHOT_COLLECTION)) {
+      throw new Error(
+        `@mastra/mongodb manages [${managed.join(', ')}], not '${WORKFLOW_SNAPSHOT_COLLECTION}' — ` +
+        'update WORKFLOW_SNAPSHOT_COLLECTION and the live-mode reset list in src/server/routes.ts.',
+      );
+    }
+    logger.info('durable review gate collection is engine-managed', {
+      collection: WORKFLOW_SNAPSHOT_COLLECTION, created_on: 'app boot', ttl: 'none',
+    });
+
+    // Register both collections with @mastra/mongodb as READ-ONLY bring-your-own indexes. LAST, on
+    // purpose: every index above must already exist so this finds them and no-ops rather than
+    // creating its own — the app's definitions carry `quantization: 'binary'` and the filter paths,
+    // neither of which `createIndex` can express. Its own connection, closed straight away; the
+    // long-lived store belongs to the server process, not to a provision run.
+    const vector = await createVectorStore(cfg, 'marshal-provision');
+    try {
+      logger.info('registered BYO vector indexes', { indexes: await registerByoIndexes(vector) });
+    } finally {
+      await vector.disconnect();
+    }
 
     // A recording already on this cluster was baked against whatever corpus existed then. Re-seeding
     // at a different SEED_SCALE_COUNT silently strands the precedent ids it cites — the replay shows

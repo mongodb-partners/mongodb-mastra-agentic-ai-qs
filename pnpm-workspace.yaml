@@ -1,5 +1,7 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@mastra/mongodb@1.15.0'
 # Force patched transitive dependencies across the tree. Each entry exists because the direct
 # dependency that pulls it in has not yet released a bump, so the override is the only way to get
 # the patched version without pinning ourselves off the upstream release train.

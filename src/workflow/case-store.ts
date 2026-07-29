@@ -104,3 +104,23 @@ export async function enqueueReview(db: Db, input: {
     { upsert: true },
   );
 }
+
+/**
+ * Record which suspended workflow run backs an already-enqueued review.
+ *
+ * A SEPARATE write, deliberately, and it must stay one. `enqueueReview` is the authoritative record
+ * that a human owes this case a decision; the run id is an advisory pointer to the durable pause
+ * wrapped around it. Folding it into `enqueueReview` would mean the review could not be written until
+ * the workflow run existed, which inverts the dependency — the review has to exist first, because a
+ * run that fails to start must cost the pause and not the case.
+ *
+ * `$set` on a matched document only: no upsert. If the review is gone (resolved by a concurrent
+ * caller, or cleared by a reset) there is nothing to point at, and creating a stub review document
+ * from a run id would invent a pending case no human asked for.
+ */
+export async function attachReviewRun(db: Db, transactionId: string, runId: string): Promise<void> {
+  await db.collection(REVIEWS_COLLECTION).updateOne(
+    { transaction_id: transactionId },
+    { $set: { workflow_run_id: runId } },
+  );
+}

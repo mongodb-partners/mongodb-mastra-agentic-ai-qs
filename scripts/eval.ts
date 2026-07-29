@@ -3,6 +3,7 @@ import { loadConfig } from '../src/config';
 import { logger } from '../src/observability/logger';
 import { getQueryEmbedder } from '../src/mastra/embed';
 import { RetrievalService } from '../src/retrieval/service';
+import { createVectorStore } from '../src/retrieval/vector-store';
 import { buildInvestigationAgent, runInvestigation } from '../src/mastra/investigation-agent';
 import { triage, reconcile } from '../src/decision/core';
 import { loadTransactionSeed, EXPECTED_DISPOSITION } from '../src/ingestion/transaction-fixtures';
@@ -18,14 +19,22 @@ async function main() {
   await client.connect();
   const db = client.db(cfg.mongoDb);
   const emb = getQueryEmbedder(cfg);
-  const svc = new RetrievalService(db, t => emb.embedQuery(t));
+  const store = await createVectorStore(cfg, 'marshal-eval');
+  const svc = new RetrievalService(db, store, t => emb.embedQuery(t));
   const agent = buildInvestigationAgent(cfg, svc);
 
   // Eval over the LIVE review cases (one per lane), each labeled by expected disposition.
   const liveCases = loadTransactionSeed().filter(s => s.model_used === 'live');
   const results: EvalCase[] = [];
   for (const t of liveCases) {
-    const verdict = await runInvestigation(agent, cfg, t.text);
+    // Same subject the real pipeline passes (run-engine.ts), so the eval measures the agent the
+    // app actually runs — without it the agent would have to guess the account and the eval would
+    // score a configuration that no longer ships.
+    const verdict = await runInvestigation(agent, cfg, t.text, undefined, undefined, {
+      transaction_id: t.transaction_id,
+      sender_account: t.sender.account_number,
+      recipient_account: t.recipient?.account_number,
+    });
     const ring = await svc.traceFunds(t.sender.account_number);
     const facts = {
       transaction_id: t.transaction_id, amount: t.amount, sender_account: t.sender.account_number,
@@ -46,6 +55,7 @@ async function main() {
   });
   console.log(JSON.stringify(report, null, 2));
 
+  await store.disconnect();
   await client.close();
   if (report.fraudRecall < FRAUD_RECALL_MIN) {
     logger.error('EVAL GATE FAILED', { fraudRecall: report.fraudRecall, min: FRAUD_RECALL_MIN });

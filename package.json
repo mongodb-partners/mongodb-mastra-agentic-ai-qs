@@ -26,12 +26,14 @@
     "beat:restore": "tsx scripts/stage-beats.ts restore"
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "5.0.17",
+    "@ai-sdk/amazon-bedrock": "5.0.32",
     "@ai-sdk/anthropic": "4.0.12",
     "@ai-sdk/openai": "4.0.11",
     "@aws-sdk/credential-providers": "^3.1081.0",
     "@hono/node-server": "^2.0.12",
-    "@mastra/core": "1.50.1",
+    "@mastra/core": "1.53.0",
+    "@mastra/mongodb": "1.15.0",
+    "@mastra/voyageai": "0.4.0",
     "hono": "^4",
     "mongodb": "^6",
     "voyageai": "0.3.1",
