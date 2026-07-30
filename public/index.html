@@ -75,6 +75,35 @@ try { var q = new URLSearchParams(location.search).get('ui');
   .panel h2, .panel > summary { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:0; padding:13px 16px 9px; display:flex; justify-content:space-between; align-items:center; }
   .scroll { overflow-y:auto; height:calc(100% - 36px); padding:0 12px 14px; }
   .scroll::-webkit-scrollbar { width:8px; } .scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  /* #left and #right are <details>, and that inserts a box `.scroll` cannot measure itself against.
+     `height:calc(100% - 36px)` on :76 resolves against the nearest definite-height ancestor, and the
+     ::details-content box between the panel and .scroll is height:auto — so the percentage had no
+     base, .scroll sized to its CONTENT, and `overflow-y:auto` had nothing to overflow. Measured on
+     the deployed replay with a 50-row queue: scrollHeight === clientHeight === 4073px inside an
+     848px panel at 1920x1080, i.e. scroll range EXACTLY 0 and 3260px of rows rendered past the
+     panel's bottom edge, clipped by .panel's own overflow:hidden. Neither wheel nor drag could
+     reach row 12 of 50 on any desktop tier.
+     It looked like a phone-only success because the phone tier never depends on this: :581 releases
+     both panels to `height:auto; overflow:visible` so the PAGE scrolls, which is why the same build
+     worked at 390px and failed at 1920px — the opposite of the usual direction, and why this read as
+     a desktop regression rather than a missing base height.
+     The regression came in with 5c641d6, which turned two <div><h2> panels into <details><summary>
+     and reported "no visual change at any current viewport". True of the summary's styling; the new
+     ::details-content box was the part that mattered, and nothing measured scroll range.
+     Fixed by flexing the panel so the intermediate box carries a definite height instead of a
+     percentage needing one: .scroll then takes `flex:1; min-height:0` and never consults a base.
+     `min-height:0` on BOTH is load-bearing — a flex item's default min-height:auto floors it at
+     content height, which reproduces the bug through a different mechanism. Verified against the
+     deployed page at 11 widths from 320 to 2200: scroll range 2392-4013px where it was 0, panel
+     bottom no longer overshot at any width, and no new page scroll or horizontal overflow.
+     Bounded to >=760px on purpose: below that :581 wants the panels NOT to be scrollers, and flexing
+     them there would re-latch the page gesture that rule exists to release. Height only — no
+     grid/areas/rect change — so the ?ui=classic baseline assertions are untouched. */
+  @media (min-width:760px) {
+    #left, #right { display:flex; flex-direction:column; }
+    #left::details-content, #right::details-content { flex:1; min-height:0; display:flex; flex-direction:column; }
+    #left .scroll, #right .scroll { flex:1; min-height:0; height:auto; }
+  }
 
   /* top bar */
   #top { grid-area:top; display:flex; align-items:center; gap:14px; padding:0 18px; }
