@@ -17,6 +17,7 @@ by known code paths and are documented here from those writers.
 - [reviews](#reviews)
 - [audit_trail](#audit_trail)
 - [agent_events](#agent_events)
+- [mastra_workflow_snapshot](#mastra_workflow_snapshot)
 - [session_resolutions](#session_resolutions)
 - [replay_* collections](#replay_-collections)
 - [Atlas Search indexes](#atlas-search-indexes)
@@ -36,6 +37,7 @@ by known code paths and are documented here from those writers.
 | `reviews` | case store, resolve route | yes | via `replay_reviews` |
 | `audit_trail` | audit store | yes | via `replay_audit` |
 | `agent_events` | run engine, tool recorder | yes | via `replay_events` |
+| `mastra_workflow_snapshot` | `@mastra/mongodb` (engine-managed) | yes | no (demo never suspends) |
 | `session_resolutions` | resolve route (demo mode) | no (24h TTL) | yes |
 | `replay_events` | `pnpm bake`, `pnpm restore:replay` | never | yes |
 | `replay_analysis` | `pnpm bake`, `pnpm restore:replay` | never | yes |
@@ -310,6 +312,26 @@ and the replay paces off `ts` deltas.
 
 Only tool calls from the committed verdict attempt are written. A retried attempt's calls really ran,
 but they belong to a discarded reasoning pass and are dropped.
+
+## mastra_workflow_snapshot
+
+Suspended and completed workflow runs, written by `@mastra/mongodb`'s `WorkflowsStorageMongoDB`. The
+schema belongs to the library, not to this app, so it is not documented field-by-field here.
+
+Two things about it are this app's decisions rather than the library's. It is the **only** collection
+the store owns: a bare `MongoDBStore` provisions 31 collections for agents, threads and datasets that
+this app never uses, so the `Mastra` instance is built with a `MastraCompositeStore` scoped to the
+workflows domain alone ([`src/workflow/review-workflow.ts`](../src/workflow/review-workflow.ts)) —
+the "one cluster, these collections" story in
+[ADR 0001](adr/0001-one-cluster-for-every-capability.md) would otherwise stop being true. And the
+collection is **advisory**: the authoritative decision record is the ACID commit in `case_decisions`
+plus the hash chain in `audit_trail`, because a workflow snapshot cannot join that transaction.
+
+Created by the engine on app boot, not by provisioning, and indexed by the library. `pnpm provision`
+only asserts the name against the library's own declaration, so a rename upstream fails loudly
+instead of silently leaving a second collection behind. A live reset clears it along with the rest of
+the run state. Demo mode never suspends a run, so a read-only deployment that cannot create it never
+reads it either.
 
 ## session_resolutions
 

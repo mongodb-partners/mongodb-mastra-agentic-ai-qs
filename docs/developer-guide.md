@@ -24,6 +24,8 @@ src/
   workflow/              orchestration and durable state
     run-engine.ts        the per-case stage sequence and event emission
     investigate.ts       triage → reconcile → commit or suspend
+    case-workflow.ts     the per-case step graph and the queue foreach
+    review-workflow.ts   the durable human-review gate (suspend/resume)
     case-store.ts        the one ACID transaction per decision
     evidence.ts          the evidence snapshot and its hash
   decision/core.ts       triage() and reconcile(), pure and synchronous

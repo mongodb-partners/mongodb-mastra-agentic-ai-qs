@@ -15,7 +15,7 @@ ran.
 | Graph traversal | `$graphLookup` | same |
 | Agent memory | `$vectorSearch` over decided cases | [`src/retrieval/service.ts`](../src/retrieval/service.ts) |
 | Governance | `$vectorSearch` over `policies` | [`src/governance/reviewer.ts`](../src/governance/reviewer.ts) |
-| Durable workflow state | Multi-document ACID transactions | [`src/workflow/case-store.ts`](../src/workflow/case-store.ts) |
+| Durable workflow state | Suspended Mastra workflow runs, backed by multi-document ACID transactions | [`src/workflow/review-workflow.ts`](../src/workflow/review-workflow.ts), [`src/workflow/case-store.ts`](../src/workflow/case-store.ts) |
 | Audit trail | Append-only HMAC hash chain | [`src/governance/audit-chain.ts`](../src/governance/audit-chain.ts) |
 | Live UI | Change streams projected as SSE | [`src/server/change-stream-sse.ts`](../src/server/change-stream-sse.ts) |
 
@@ -267,6 +267,19 @@ one aborts and retries against the new tail, instead of both chaining to it and 
 A held case is durable in a different sense. The evidence snapshot and its hash are persisted, and a
 human verdict arriving minutes or days later re-derives the hash from current state before committing.
 Drift is refused as stale rather than committed against evidence the reviewer never saw.
+
+That pause is also a suspended Mastra workflow run. The review gate
+([`src/workflow/review-workflow.ts`](../src/workflow/review-workflow.ts)) is one `createStep` that
+calls `suspend()` on its first pass and resumes with the human verdict, persisting to
+`mastra_workflow_snapshot` via `WorkflowsStorageMongoDB` — so the pause is one addressable durable
+object with typed suspend/resume payloads rather than two processes passing a document. A run
+suspended in one process resumes in another after a full restart.
+
+The engine does not own the decision. On resume the step delegates to the same `resolveReview`, so
+the evidence-hash re-derivation and the ACID commit stay where they are: `reviews`,
+`case_decisions` and `audit_trail` remain authoritative and the snapshot is advisory. A workflow
+snapshot cannot join `commitCaseDecision`'s transaction and is not in the hash chain, which is why
+the resolve route keeps its own atomic `pending_review → resolving` claim.
 
 `MONGODB_URI` must point at a replica set for any of this. Transactions and change streams both
 require one.

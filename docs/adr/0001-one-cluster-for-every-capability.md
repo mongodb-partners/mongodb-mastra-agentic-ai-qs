@@ -27,9 +27,19 @@ writes.
 | Graph | `$graphLookup` on `transactions` |
 | Policy retrieval | `$vectorSearch` on `policies` |
 | Durable decisions | Multi-document transactions |
+| Durable workflow runs | `mastra_workflow_snapshot`, one collection |
 | Live feed | Change streams |
 
-No Mastra vector adapter, no sync job, no second connection string.
+No sync job and no second connection string.
+
+Amended (2026-07-30): the app now does use `@mastra/mongodb` — `MongoDBVector` for the search reads
+and `WorkflowsStorageMongoDB` for suspended runs — which reads against the letter of the original
+"no Mastra vector adapter". The decision itself is unchanged, because both are pointed at the
+cluster this ADR describes rather than at storage of their own. The vector adapter is registered
+**bring-your-own**: existing collections, existing Atlas indexes, no copy and nothing to keep in
+sync. The workflow store is scoped to the workflows domain with a `MastraCompositeStore`, since a
+bare `MongoDBStore` would provision 31 collections for agents, threads and datasets this app never
+uses — which is the version of the adapter this ADR was right to refuse.
 
 ## Consequences
 

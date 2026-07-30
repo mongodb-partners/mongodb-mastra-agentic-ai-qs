@@ -31,6 +31,16 @@ only `{ decision }`, so a caller cannot present a hash and cannot influence whic
 The suspend is durable in the database, not in process memory. A restart between hold and resolve
 loses nothing.
 
+Amended (2026-07-30): the hold is now additionally a suspended Mastra workflow run
+([`../../src/workflow/review-workflow.ts`](../../src/workflow/review-workflow.ts)), persisted to
+`mastra_workflow_snapshot`, and `reviews.workflow_run_id` links the two. Nothing in this decision
+changes. The engine supplies typed suspend/resume payloads and one addressable run; it does not
+take over the commit. On resume the step delegates to the same `resolveReview`, so the hash is
+still re-derived from current state, the stale refusal still happens there, and the route keeps its
+atomic claim — the engine's own double-resume rejection fires too late to replace it, and would not
+cover a case suspended before this shipped. Starting the run is optional and additive: if it fails,
+the hold degrades to exactly the behaviour described above.
+
 ## Consequences
 
 An approval is bound to a specific set of facts. If anything the derived snapshot depends on moved, the
